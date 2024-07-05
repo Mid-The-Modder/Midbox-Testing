@@ -181,6 +181,7 @@ var beepbox = (function (exports) {
         { name: "normal", isSeamless: false, continues: false, slides: false, slideTicks: 3, includeAdjacentPatterns: false },
         { name: "interrupt", isSeamless: true, continues: false, slides: false, slideTicks: 3, includeAdjacentPatterns: true },
         { name: "continue", isSeamless: true, continues: true, slides: false, slideTicks: 3, includeAdjacentPatterns: true },
+        { name: "slide", isSeamless: true, continues: false, slides: true, slideTicks: 3, includeAdjacentPatterns: true },
     ]);
     Config.vibratos = toNameMap([
         { name: "none", amplitude: 0.0, type: 0, delayTicks: 0 },
@@ -899,8 +900,8 @@ var beepbox = (function (exports) {
             return null;
         }
     }
-    EditorConfig.version = "0.2";
-    EditorConfig.versionDisplayName = "Midbox " + EditorConfig.version;
+    EditorConfig.version = "V2";
+    EditorConfig.versionDisplayName = "Midbox TESTING " + EditorConfig.version;
     EditorConfig.releaseNotesURL = "https://jummbus.bitbucket.io/patch_notes/" + EditorConfig.version + ".html";
     EditorConfig.isOnMac = /^Mac/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent) || /^(iPhone|iPad|iPod)/i.test(navigator.platform) || /(iPhone|iPad|iPod)/i.test(navigator.userAgent);
     EditorConfig.ctrlSymbol = EditorConfig.isOnMac ? "⌘" : "Ctrl+";
@@ -9346,7 +9347,7 @@ var beepbox = (function (exports) {
                     settingsExpressionMult *= Math.pow(2.0, 0.7 * (1.0 - useSustainStart / (Config.stringSustainRange - 1)));
                 }
                 const startFreq = Instrument.frequencyFromPitch(startPitch);
-                if (instrument.type == 0 || instrument.type == 8 || instrument.type == 5 || instrument.type == 7 || instrument.type == 3 || instrument.type == 6) {
+                if (instrument.type == 0 || instrument.type == 8 || instrument.type == 5 || instrument.type == 7) {
                     const unison = Config.unisons[instrument.unison];
                     const voiceCountExpression = (instrument.type == 7) ? 1 : unison.voices / 2.0;
                     settingsExpressionMult *= unison.expression * voiceCountExpression;

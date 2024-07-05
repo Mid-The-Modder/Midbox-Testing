@@ -903,8 +903,8 @@ var beepbox = (function (exports) {
             return null;
         }
     }
-    EditorConfig.version = "0.2";
-    EditorConfig.versionDisplayName = "Midbox " + EditorConfig.version;
+    EditorConfig.version = "V2";
+    EditorConfig.versionDisplayName = "Midbox TESTING " + EditorConfig.version;
     EditorConfig.releaseNotesURL = "https://jummbus.bitbucket.io/patch_notes/" + EditorConfig.version + ".html";
     EditorConfig.isOnMac = /^Mac/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent) || /^(iPhone|iPad|iPod)/i.test(navigator.platform) || /(iPhone|iPad|iPod)/i.test(navigator.userAgent);
     EditorConfig.ctrlSymbol = EditorConfig.isOnMac ? "⌘" : "Ctrl+";
@@ -15279,7 +15279,7 @@ li.select2-results__option[role=group] > strong:hover {
                     settingsExpressionMult *= Math.pow(2.0, 0.7 * (1.0 - useSustainStart / (Config.stringSustainRange - 1)));
                 }
                 const startFreq = Instrument.frequencyFromPitch(startPitch);
-                if (instrument.type == 0 || instrument.type == 8 || instrument.type == 5 || instrument.type == 7 || instrument.type == 3 || instrument.type == 6) {
+                if (instrument.type == 0 || instrument.type == 8 || instrument.type == 5 || instrument.type == 7) {
                     const unison = Config.unisons[instrument.unison];
                     const voiceCountExpression = (instrument.type == 7) ? 1 : unison.voices / 2.0;
                     settingsExpressionMult *= unison.expression * voiceCountExpression;
@@ -16851,6 +16851,29 @@ li.select2-results__option[role=group] > strong:hover {
         }
     }
 
+    function mod(a, b) {
+        return (a % b + b) % b;
+    }
+    function sigma(a, b, c) {
+        let result = 0;
+        for (let i = c; i <= a; i++) {
+            result += b(i);
+        }
+        return result;
+    }
+    function clamp$1(min, max, val) {
+        max = max - 1;
+        if (val <= max) {
+            if (val >= min)
+                return val;
+            else
+                return min;
+        }
+        else {
+            return max;
+        }
+    }
+
     function patternsContainSameInstruments(pattern1Instruments, pattern2Instruments) {
         const pattern2Has1Instruments = pattern1Instruments.every(instrument => pattern2Instruments.indexOf(instrument) != -1);
         const pattern1Has2Instruments = pattern2Instruments.every(instrument => pattern1Instruments.indexOf(instrument) != -1);
@@ -17040,6 +17063,141 @@ li.select2-results__option[role=group] > strong:hover {
         }
         if (!joinedWithPrevNote) {
             newNotes.push(newNote);
+        }
+    }
+    function randomRoundedWave(wave) {
+        let randomRoundWave = new Float32Array(64);
+        let waveLength = 64;
+        let foundNonZero = false;
+        const roundedWaveType = (Math.random() * 2 + 1) | 0;
+        if (roundedWaveType == 1) {
+            let randomNumber1 = Math.random() * 2 + 0.5;
+            let randomNumber2 = Math.random() * 13 + 3;
+            let randomNumber3 = Math.random() * 48 - 24;
+            for (let i = 0; i < waveLength; i++) {
+                randomRoundWave[i] = clamp$1(-24, 24 + 1, Math.round(mod(randomNumber3 + ((Math.sin((i + randomNumber3) / randomNumber2) * 24) + i * randomNumber1), 48) - 24));
+            }
+        }
+        else if (roundedWaveType == 2) {
+            let randomNumber1 = Math.random() * 0.19 + 0.06;
+            let randomNumber2 = Math.random() * 2 + 1;
+            let randomNumber3 = Math.random() * 48 - 24;
+            let randomNumber4 = Math.random() * 2 - 1;
+            for (let i = 0; i < waveLength; i++) {
+                randomRoundWave[i] = clamp$1(-24, 24 + 1, Math.round(randomNumber4 * Math.abs(2 * Math.floor((Math.sin((i / randomNumber2) * randomNumber1 + randomNumber3) * Math.cos((i * randomNumber2) * (randomNumber1 / 2)) * 24))) - randomNumber4 * 24));
+            }
+        }
+        else ;
+        for (let i = 0; i < waveLength; i++) {
+            wave[i] = randomRoundWave[i];
+            let minimum = Infinity;
+            let maximum = -Infinity;
+            for (let i = 0; i < waveLength; i++) {
+                minimum = Math.min(minimum, wave[i]);
+                maximum = Math.max(maximum, wave[i]);
+            }
+            const distance = maximum - minimum;
+            if (distance >= 7) {
+                foundNonZero = true;
+            }
+        }
+        if (!foundNonZero)
+            randomRoundedWave(wave);
+    }
+    function randomPulses(wave) {
+        let randomPulse = new Float32Array(64);
+        let waveLength = 64;
+        let foundNonZero = false;
+        let randomNumber2 = Math.round(Math.random() * 15 + 15);
+        let randomNumber3 = Math.round(Math.random() * 3 + 1);
+        let randomNumber4 = Math.round(Math.random() * 13 + 2);
+        for (let i = 0; i < waveLength; i++) {
+            let randomNumber1 = sigma(mod(i, randomNumber2), (i) => 1, randomNumber4);
+            randomPulse[i] = clamp$1(-24, 24 + 1, Math.round(mod(24 * (sigma(i, (i) => randomNumber1, Math.round(randomNumber2 / randomNumber3))), 24.0000000000001)));
+        }
+        for (let i = 0; i < waveLength; i++) {
+            wave[i] = randomPulse[i];
+            let minimum = Infinity;
+            let maximum = -Infinity;
+            for (let i = 0; i < waveLength; i++) {
+                minimum = Math.min(minimum, wave[i]);
+                maximum = Math.max(maximum, wave[i]);
+            }
+            const distance = maximum - minimum;
+            if (distance >= 7) {
+                foundNonZero = true;
+            }
+        }
+        if (!foundNonZero)
+            randomPulses(wave);
+    }
+    function randomChip(wave) {
+        let randomChipWave = new Float32Array(64);
+        let waveLength = 64;
+        let foundNonZero = false;
+        const chipType = (Math.random() * 2 + 1) | 0;
+        if (chipType == 1) {
+            let randomNumber1 = Math.random() * 3;
+            let randomNumber2 = Math.random() * 0.99 - 1;
+            let randomNumber3 = Math.random() * 9 + 2;
+            let randomNumber4 = Math.random() * 2 - 1;
+            for (let i = 0; i < waveLength; i++) {
+                randomChipWave[i] = clamp$1(-24, 24 + 1, (Math.round(Math.abs(randomNumber4 * mod(((randomNumber2 / randomNumber3) * randomNumber3) + (sigma(i / (randomNumber1 * randomNumber1), (i) => randomNumber3, randomNumber1 * -randomNumber2)) * randomNumber4, 24)))) * 2 - 24);
+            }
+        }
+        else if (chipType == 2) {
+            let randomNumber1 = Math.random() * 3;
+            let randomNumber2 = Math.random() * 2 - 1;
+            let randomNumber3 = Math.random() * 100;
+            for (let i = 0; i < waveLength; i++) {
+                randomChipWave[i] = clamp$1(-24, 24 + 1, mod(Math.round(mod((sigma(i / randomNumber1, (i) => (randomNumber1 * randomNumber3), 0)), 25 + randomNumber2) * 24), 48) - 24);
+            }
+        }
+        for (let i = 0; i < waveLength; i++) {
+            wave[i] = randomChipWave[i];
+            let minimum = Infinity;
+            let maximum = -Infinity;
+            for (let i = 0; i < waveLength; i++) {
+                minimum = Math.min(minimum, wave[i]);
+                maximum = Math.max(maximum, wave[i]);
+            }
+            const distance = maximum - minimum;
+            if (distance >= 7) {
+                foundNonZero = true;
+            }
+        }
+        if (!foundNonZero)
+            randomChip(wave);
+    }
+    function biasedFullyRandom(wave) {
+        let fullyRandomWave = new Float32Array(64);
+        let waveLength = 64;
+        let foundNonZero = false;
+        for (let i = 0; i < waveLength; i++) {
+            const v = Math.random() * 2 - 1;
+            const bias = 6;
+            const biased = v > 0 ? Math.pow(v, bias) : -Math.pow(-v, bias);
+            fullyRandomWave[i] = clamp$1(-24, 24 + 1, Math.floor(biased * 24));
+        }
+        for (let i = 0; i < waveLength; i++) {
+            wave[i] = fullyRandomWave[i];
+            let minimum = Infinity;
+            let maximum = -Infinity;
+            for (let i = 0; i < waveLength; i++) {
+                minimum = Math.min(minimum, wave[i]);
+                maximum = Math.max(maximum, wave[i]);
+            }
+            const distance = maximum - minimum;
+            if (distance >= 7) {
+                foundNonZero = true;
+            }
+        }
+        if (!foundNonZero)
+            biasedFullyRandom(wave);
+    }
+    function randomizeWave(wave, start, end) {
+        for (let i = start; i < end; i++) {
+            wave[i] = clamp$1(-24, 24 + 1, ((Math.random() * 48) | 0) - 24);
         }
     }
     class ChangeMoveAndOverflowNotes extends ChangeGroup {
@@ -17478,6 +17636,7 @@ li.select2-results__option[role=group] > strong:hover {
                     { item: 7, weight: 3 },
                     { item: 3, weight: 3 },
                     { item: 1, weight: 3 },
+                    { item: 8, weight: 3 },
                 ]);
                 instrument.preset = instrument.type = type;
                 instrument.fadeIn = (Math.random() < 0.5) ? 0 : selectCurvedDistribution(0, Config.fadeInRange - 1, 0, 2);
@@ -17512,22 +17671,13 @@ li.select2-results__option[role=group] > strong:hover {
                     instrument.transition = Config.transitions.dictionary[selectWeightedRandom([
                         { item: "interrupt", weight: 1 },
                         { item: "slide", weight: 1 },
-                        { item: "insta-slide", weight: 1 },
-                        { item: "slide in pattern", weight: 1 },
                         { item: "continue", weight: 1 },
-                        { item: "continue in pattern", weight: 1 },
                     ])].index;
                 }
                 if (Math.random() < 0.2) {
                     instrument.effects |= 1 << 11;
                     instrument.chord = Config.chords.dictionary[selectWeightedRandom([
                         { item: "strum", weight: 1 },
-                        { item: "medium strum", weight: 1 },
-                        { item: "slow strum", weight: 1 },
-                        { item: "1/3 strum", weight: 1 },
-                        { item: "1/3 medium strum", weight: 1 },
-                        { item: "1/3 slow strum", weight: 1 },
-                        { item: "build up", weight: 1 },
                         { item: "arpeggio", weight: 1 },
                     ])].index;
                 }
@@ -17873,6 +18023,33 @@ li.select2-results__option[role=group] > strong:hover {
                                     { item: "modbox bow", weight: 2 },
                                 ])].index);
                             }
+                        }
+                        break;
+                    case 8:
+                        {
+                            let randomGeneratedArray = new Float32Array(64);
+                            let randomGeneratedArrayIntegral = new Float32Array(65);
+                            const algorithmFunction = selectWeightedRandom([
+                                { item: randomRoundedWave, weight: 1 },
+                                { item: randomPulses, weight: 1 },
+                                { item: randomChip, weight: 1 },
+                                { item: biasedFullyRandom, weight: 1 },
+                            ]);
+                            algorithmFunction(randomGeneratedArray);
+                            let sum = 0.0;
+                            for (let i = 0; i < randomGeneratedArray.length; i++)
+                                sum += randomGeneratedArray[i];
+                            const average = sum / randomGeneratedArray.length;
+                            let cumulative = 0;
+                            let wavePrev = 0;
+                            for (let i = 0; i < randomGeneratedArray.length; i++) {
+                                cumulative += wavePrev;
+                                wavePrev = randomGeneratedArray[i] - average;
+                                randomGeneratedArrayIntegral[i] = cumulative;
+                            }
+                            randomGeneratedArrayIntegral[64] = 0.0;
+                            instrument.customChipWave = randomGeneratedArray;
+                            instrument.customChipWaveIntegral = randomGeneratedArrayIntegral;
                         }
                         break;
                     default: throw new Error("Unhandled pitched instrument type in random generator.");
@@ -20732,11 +20909,1721 @@ li.select2-results__option[role=group] > strong:hover {
         }
     }
 
-    const { button: button$2, div: div$2, h2: h2$2 } = HTML;
+    var _a$1;
+    class Localization {
+    }
+    Localization.confirmLabel = "Confirm";
+    Localization.resetLabel = "Reset";
+    Localization.playLabel = "Play";
+    Localization.shortenedPlayLabel = "Play";
+    Localization.pauseLabel = "Pause";
+    Localization.recordLabel = "Record";
+    Localization.stopLabel = "Stop";
+    Localization.effectsLabel = "Effects";
+    Localization.envelopesLabel = "Envelopes";
+    Localization.instSettingsLabel = "Instrument Settings";
+    Localization.songSettingsLabel = "Song Settings";
+    Localization.chorusLabel = "Chorus:";
+    Localization.reverbLabel = "Reverb:";
+    Localization.echoLabel = "Echo:";
+    Localization.echoDelayLabel = "Echo Delay:";
+    Localization.algorithmLabel = "Algorithm:";
+    Localization.instAmountLabel = "Instrument:";
+    Localization.volumeLabel = "Volume:";
+    Localization.panLabel = "Pan:";
+    Localization.panDelayLabel = "‣ Delay:";
+    Localization.waveLabel = "Wave:";
+    Localization.noiseLabel = "Noise:";
+    Localization.transitionLabel = "Transition:";
+    Localization.clicklessLabel = "‣ Clickless:";
+    Localization.continueThroughPatternLabel = "‣ In Pattern:";
+    Localization.simpleLabel = "Simple";
+    Localization.advancedLabel = "Advanced";
+    Localization.EQLabel = "EQ Filt:";
+    Localization.EQTypeLabel = "EQ Filt. Type:";
+    Localization.noteFiltLabel = "Note Filt:";
+    Localization.noteFiltTypeLabel = "Note Filt. Type:";
+    Localization.pwmLabel = "Pulse Width:";
+    Localization.pitchShiftLabel = "Pitch Shift:";
+    Localization.detuneLabel = "Detune:";
+    Localization.distortionLabel = "Distortion:";
+    Localization.reshaperLabel = "Reshape:";
+    Localization.reshapeShiftLabel = "Shift:";
+    Localization.chordLabel = "Chords:";
+    Localization.vibratoLabel = "Vibrato:";
+    Localization.aliasingLabel = "Aliasing:";
+    Localization.bitCrushLabel = "Bit Crush:";
+    Localization.freqCrushLabel = "Freq Crush:";
+    Localization.wavefoldLowerLabel = "Lower Threshold:";
+    Localization.wavefoldUpperLabel = "Upper Threshold:";
+    Localization.fadeLabel = "Fade:";
+    Localization.unisonLabel = "Unison:";
+    Localization.unisonVoicesLabel = "‣ Voices: ";
+    Localization.unisonSpreadLabel = "‣ Spread: ";
+    Localization.unisonOffsetLabel = "‣ Offset: ";
+    Localization.unisonVolumeLabel = "‣ Volume: ";
+    Localization.unisonSignLabel = "‣ Sign: ";
+    Localization.strumSpeedLabel = "‣ Spd:";
+    Localization.slideSpeedLabel = "‣ Spd:";
+    Localization.arpSpeedLabel = "‣ Spd:";
+    Localization.envelopeSpeedLabel = "‣ Spd:";
+    Localization.timeRangeLabel = "‣ Time Range: ";
+    Localization.perEnvelopeSpeedLabel = "‣ Env Spd:";
+    Localization.discreteEnvelopeLabel = "‣ Discrete:";
+    Localization.lowerBoundLabel = "‣ Lwr Bnd:";
+    Localization.upperBoundLabel = "‣ Upr Bnd:";
+    Localization.stairsStepAmountLabel = "‣ Steps:";
+    Localization.envelopeDelayLabel = "‣ Delay:";
+    Localization.delayMeasurementLabel = "‣ Delay In Seconds?";
+    Localization.phaseMeasurementLabel = "‣ Posit. In Seconds?";
+    Localization.pitchStartLabel = "‣ Start ";
+    Localization.pitchEndLabel = "‣ End ";
+    Localization.pitchAmplifyLabel = "Amplify:";
+    Localization.pitchBounceLabel = "Bounce:";
+    Localization.envelopeStartingPointLabel = "‣ Position:";
+    Localization.LFOShapeLabel = "‣ Shape:";
+    Localization.LFOLoopsLabel = "‣ Loops?";
+    Localization.trapezoidRatioLabel = "‣ Ratio:";
+    Localization.firstSineSpeedLabel = "‣ S1 Spd:";
+    Localization.secondSineSpeedLabel = "‣ S2 Spd:";
+    Localization.wavetableSpeedLabel = "Spd:";
+    Localization.interpolateWavesLabel = "Interpolate:";
+    Localization.resetCyclePerNoteLabel = "Cycle per Note:";
+    Localization.oneShotCycleLabel = "One-Shot:";
+    Localization.twoFastArpLabel = "‣ Fast Two-Note:";
+    Localization.arpeggioPatternLabel = "‣ Arp Pattern:";
+    Localization.arpeggioPattern1Label = "Pattern: Normal";
+    Localization.arpeggioPattern2Label = "Pattern: Legacy";
+    Localization.arpeggioPattern3Label = "Pattern: Scramble";
+    Localization.arpeggioPattern4Label = "Pattern: Oscillate";
+    Localization.arpeggioPattern5Label = "Pattern: Escalate";
+    Localization.arpeggioPattern6Label = "Pattern: Shift";
+    Localization.arpeggioPattern7Label = "Pattern: Normal (Bounce)";
+    Localization.arpeggioPattern8Label = "Pattern: Scramble (Bounce)";
+    Localization.arpeggioPattern9Label = "Pattern: Oscillate (Bounce)";
+    Localization.arpeggioPattern10Label = "Pattern: Escalate (Bounce)";
+    Localization.arpeggioPattern11Label = "Pattern: Shift (Bounce)";
+    Localization.vibratoDepthLabel = "‣ Depth:";
+    Localization.vibratoSpeedLabel = "‣ Spd:";
+    Localization.vibratoDelayLabel = "‣ Delay:";
+    Localization.vibratoTypeLabel = "‣ Type:";
+    Localization.sustainLabel = "Sustain:";
+    Localization.sustain2Label = "Sustain (";
+    Localization.filterCutLabel = "Filter Cut:";
+    Localization.filterPeakLabel = "Filter Peak:";
+    Localization.spectrumLabel = "Spectrum:";
+    Localization.harmonicsLabel = "Harmonics:";
+    Localization.feedbackLabel = "Feedback:";
+    Localization.feedbackVolumeLabel = "Fdback Vol:";
+    Localization.instTypeLabel = "Type:";
+    Localization.oscilloscopeScaleLabel = "Scale:";
+    Localization.songScaleLabel = "Scale:";
+    Localization.customScaleNoteLabel = "Note ";
+    Localization.songKeyLabel = "Key:";
+    Localization.songKeyOctaveLabel = "Octave: ";
+    Localization.songTempoLabel = "Tempo:";
+    Localization.songRhythmLabel = "Rhythm:";
+    Localization.operFreqLabel = "Freq:";
+    Localization.operVolumeLabel = "Volume:";
+    Localization.operWaveLabel = "Wave:";
+    Localization.modSettingLabel = "Setting:";
+    Localization.modTargetLabel = "Target:";
+    Localization.copyInstrumentLabel = "Copy Instrument (⇧C)";
+    Localization.pasteInstrumentLabel = "Paste Instrument (⇧V)";
+    Localization.snapScaleLabel = "Snap Notes to Scale";
+    Localization.detectKeyLabel = "Detect Key";
+    Localization.snapRhythmLabel = "Snap Notes to Rhythm";
+    Localization.fileSettingsLabel = "File/Sharing";
+    Localization.editSettingsLabel = "Edit/Song";
+    Localization.preferenceSettingsLabel = "Preferences";
+    Localization.bitCrushHover = "Bitcrusher Quantization";
+    Localization.freqCrushHover = "Frequency Quantization";
+    Localization.scale1Label = "Free / Chromatic";
+    Localization.scale2Label = "Major";
+    Localization.scale3Label = "Minor";
+    Localization.scale4Label = "Mixolydian";
+    Localization.scale5Label = "Lydian";
+    Localization.scale6Label = "Dorian";
+    Localization.scale7Label = "Phrygian";
+    Localization.scale8Label = "Locrian";
+    Localization.scale9Label = "Lydian Dominant";
+    Localization.scale10Label = "Phrygian Dominant";
+    Localization.scale11Label = "Harmonic Major";
+    Localization.scale12Label = "Harmonic Minor";
+    Localization.scale13Label = "Melodic Minor";
+    Localization.scale14Label = "Blues";
+    Localization.scale15Label = "Altered";
+    Localization.scale16Label = "Major Pentatonic";
+    Localization.scale17Label = "Minor Pentatonic";
+    Localization.scale18Label = "Whole Tone";
+    Localization.scale19Label = "Octatonic";
+    Localization.scale20Label = "Hexatonic";
+    Localization.scale21Label = "Custom Scale";
+    Localization.customizeScaleLabel = "Configure Custom Scale";
+    Localization.rhythmBy3Label = "÷3 (Triplets)";
+    Localization.rhythmBy4Label = "÷4 (Semiquavers)";
+    Localization.rhythmBy6Label = "÷6 (Sextuplets)";
+    Localization.rhythmBy8Label = "÷8 (Demisemiquavers)";
+    Localization.rhythmBy24Label = "÷24 (Quattuorvigintuplets)";
+    Localization.percussionLabel = "Key-Affected:";
+    Localization.editLabel = "Edit";
+    Localization.customLabel = "custom";
+    Localization.newSongLabel = "Untitled Project";
+    Localization.panEffectLabel = "panning";
+    Localization.transitionEffectLabel = "transition type";
+    Localization.chordEffectLabel = "chord type";
+    Localization.pitchShiftEffectLabel = "pitch shift";
+    Localization.detuneEffectLabel = "detune";
+    Localization.vibratoEffectLabel = "vibrato";
+    Localization.noteFiltEffectLabel = "note filter";
+    Localization.distortionEffectLabel = "distortion";
+    Localization.bitCrushEffectLabel = "bitcrusher";
+    Localization.wavefoldEffectLabel = "wavefold";
+    Localization.reshapeEffectLabel = "reshaper";
+    Localization.chorusEffectLabel = "chorus";
+    Localization.echoEffectLabel = "echo";
+    Localization.reverbEffectLabel = "reverb";
+    Localization.percussionEffectLabel = "percussion";
+    Localization.songDetuneEffectedLabel = "SD-Affected:";
+    Localization.songOctaveEffectedLabel = "SO-Affected:";
+    Localization.wave1Label = "rounded";
+    Localization.wave2Label = "triangle";
+    Localization.wave3Label = "square";
+    Localization.wave4Label = "1/4 pulse";
+    Localization.wave5Label = "1/6 pulse";
+    Localization.wave6Label = "1/8 pulse";
+    Localization.wave7Label = "1/12 pulse";
+    Localization.wave8Label = "1/16 pulse";
+    Localization.wave9Label = "heavy saw";
+    Localization.wave10Label = "bass-y";
+    Localization.wave11Label = "strange";
+    Localization.wave12Label = "sawtooth";
+    Localization.wave13Label = "double saw";
+    Localization.wave14Label = "double pulse";
+    Localization.wave15Label = "spiky";
+    Localization.wave16Label = "sine";
+    Localization.wave17Label = "flute";
+    Localization.wave18Label = "harp";
+    Localization.wave19Label = "sharp clarinet";
+    Localization.wave20Label = "soft clarinet";
+    Localization.wave21Label = "alto sax";
+    Localization.wave22Label = "bassoon";
+    Localization.wave23Label = "trumpet";
+    Localization.wave24Label = "electric guitar";
+    Localization.wave25Label = "organ";
+    Localization.wave26Label = "pan flute";
+    Localization.wave27Label = "glitch";
+    Localization.wave28Label = "accurate sine";
+    Localization.wave29Label = "accurate triangle";
+    Localization.wave30Label = "secant";
+    Localization.wave31Label = "glitch 2";
+    Localization.wave32Label = "trapezoid";
+    Localization.wave33Label = "accurate trapezoid";
+    Localization.noise1Label = "retro";
+    Localization.noise2Label = "white";
+    Localization.noise3Label = "clang";
+    Localization.noise4Label = "buzz";
+    Localization.noise5Label = "hollow";
+    Localization.noise6Label = "shine";
+    Localization.noise7Label = "deep";
+    Localization.noise8Label = "cutter";
+    Localization.noise9Label = "metallic";
+    Localization.noise10Label = "static";
+    Localization.noise11Label = "retro clang";
+    Localization.noise12Label = "chime";
+    Localization.noise13Label = "harsh";
+    Localization.noise14Label = "trill";
+    Localization.noise15Label = "detuned periodic";
+    Localization.noise16Label = "snare";
+    Localization.copyLabel = "Copy";
+    Localization.pasteLabel = "Paste";
+    Localization.randomLabel = "Randomize ▾";
+    Localization.random2Label = "Randomize";
+    Localization.randomPresetLabel = "Random Preset";
+    Localization.randomGeneratedLabel = "Random Generated";
+    Localization.useSeedLabel = "Use Seed Generation:";
+    Localization.seedLabel = "Seed: ";
+    Localization.newBlankSongLabel = "+ New Blank Song (⇧`)";
+    Localization.importSongLabel = "↑ Import Song... (";
+    Localization.exportSongLabel = "↓ Export Song...(";
+    Localization.copyURLLabel = "⎘ Copy Song URL";
+    Localization.shareURLLabel = "⤳ Share Song URL";
+    Localization.shortenURLLabel = "… Shorten Song URL (U)";
+    Localization.songPlayerLabel = "▶ View in Song Player (P)";
+    Localization.copyEmbedCodeLabel = "⎘ Copy HTML Embed Code";
+    Localization.recoverSongLabel = "⚠ Recover Recent Song... (`)";
+    Localization.undoLabel = "Undo (Z)";
+    Localization.redoLabel = "Redo (Y)";
+    Localization.copyPatternLabel = "Copy Pattern (C)";
+    Localization.pastePatternNotesLabel = "Paste Pattern Notes (V)";
+    Localization.pastePatternNumbersLabel = "Paste Pattern Numbers (";
+    Localization.cutLabel = "Cut (X)";
+    Localization.insertBarLabel = "Insert Bar (⏎)";
+    Localization.deleteBarLabel = "Delete Selected Bars (⌫)";
+    Localization.insertChannelLabel = "Insert Channel (";
+    Localization.deleteChannelLabel = "Delete Selected Channels (";
+    Localization.selectChannelLabel = "Select Channel (⇧A)";
+    Localization.selectAllLabel = "Select All (A)";
+    Localization.duplicatePatternsLabel = "Duplicate Reused Patterns (D)";
+    Localization.moveNotesUpLabel = "Move Notes Up (+ or ⇧+)";
+    Localization.moveNotesDownLabel = "Move Notes Down (- or ⇧-)";
+    Localization.moveNotesSidesLabel = "Move All Notes Sideways... (W)";
+    Localization.beatsInBarLabel = "Change Beats Per Bar... (B)";
+    Localization.songLengthLabel = "Change Song Length... (L)";
+    Localization.channelSettingsLabel = "Channel Settings... (Q)";
+    Localization.limiterSettingsLabel = "Limiter Settings... (⇧L)";
+    Localization.randomGenSettingsLabel = "Random Generation Settings... (";
+    Localization.autoPlayLabel = "Auto Play on Load";
+    Localization.autoFollowLabel = "Keep Current Pattern Selected";
+    Localization.enableNotePreviewLabel = "Preview Added Notes";
+    Localization.showPianoLabel = "Show Piano";
+    Localization.showFifthLabel = 'Highlight "Fifth" Note';
+    Localization.notesOutsideScaleLabel = "Allow Adding Notes Outside Scale";
+    Localization.setDefaultScaleLabel = "Set Current Scale as Default";
+    Localization.showAllChannelsLabel = "Show All Channels";
+    Localization.scrollbarLabel = "Show Octave Scroll Bar";
+    Localization.fineNoteVolumeLabel = "Always Fine Note Volume Control";
+    Localization.channelMutingLabel = "Enable Channel Muting/Naming";
+    Localization.displayURLInBrowserLabel = "Display Song Data in URL";
+    Localization.showPlaybackBarLabel = "Show Playback Volume Bar";
+    Localization.showOscilloscopeLabel = "Show Oscilloscope";
+    Localization.setLanguageLabel = "　Set Language...";
+    Localization.setLayoutLabel = "　Set Layout...";
+    Localization.setThemeLabel = "　Set Theme...";
+    Localization.setNoteRecordingLabel = "　Note Recording...";
+    Localization.unison1Label = "none";
+    Localization.unison2Label = "shimmer";
+    Localization.unison3Label = "hum";
+    Localization.unison4Label = "honky tonk";
+    Localization.unison5Label = "dissonant";
+    Localization.unison6Label = "fifth";
+    Localization.unison7Label = "octave";
+    Localization.unison8Label = "bowed";
+    Localization.unison9Label = "piano";
+    Localization.unison10Label = "warbled";
+    Localization.unison11Label = "hyper";
+    Localization.unison12Label = "peak";
+    Localization.unison13Label = "deep shift";
+    Localization.unison14Label = "broke";
+    Localization.unison15Label = "vary";
+    Localization.unison16Label = "energetic";
+    Localization.unison17Label = "lone fifth";
+    Localization.unison18Label = "alternate fifth";
+    Localization.unison19Label = "offtune";
+    Localization.unison20Label = "hold";
+    Localization.unison21Label = "buried";
+    Localization.unison22Label = "corrupt";
+    Localization.unison23Label = "weird octave";
+    Localization.unison24Label = "bent";
+    Localization.unison25Label = "hecking gosh";
+    Localization.transition1Label = "normal";
+    Localization.transition2Label = "interrupt";
+    Localization.transition3Label = "continue";
+    Localization.transition4Label = "slide";
+    Localization.vibrato1Label = "none";
+    Localization.vibrato2Label = "light";
+    Localization.vibrato3Label = "delayed";
+    Localization.vibrato4Label = "heavy";
+    Localization.vibrato5Label = "shaky";
+    Localization.vibratoNormalLabel = "normal";
+    Localization.vibratoShakyLabel = "shaky";
+    Localization.chord1Label = "simultaneous";
+    Localization.chord2Label = "strum";
+    Localization.chord3Label = "arpeggio";
+    Localization.chord4Label = "custom interval";
+    Localization.drumsetIndexLabel = "Index: ";
+    Localization.chipWaveInstLabel = "chip wave";
+    Localization.FMInstLabel = "FM";
+    Localization.noiseInstDrumLabel = "basic noise";
+    Localization.spectrumInstDrumLabel = "spectrum";
+    Localization.drumsetDrumLabel = "drumset";
+    Localization.harmonicsInstLabel = "harmonics";
+    Localization.pwmInstLabel = "pulse width";
+    Localization.pickedStringInstLabel = "picked string";
+    Localization.customChipInstLabel = "custom chip";
+    Localization.supersawInstLabel = "supersaw";
+    Localization.wavetableInstLabel = "wavetable";
+    Localization.ADVFMInstLabel = "advanced FM";
+    Localization.customInstrumentsLabel = "Instrument Types";
+    Localization.midboxMiscPresetsLabel = "Midbox Misc Presets";
+    Localization.midboxDubstepPresetsLabel = "Midbox Dubstep Presets";
+    Localization.midboxNoisePresetsLabel = "Midbox Noise Presets";
+    Localization.midboxDrumPresetsLabel = "Midbox Drum Presets";
+    Localization.midboxPianoPresetsLabel = "Midbox Piano Presets";
+    Localization.midboxLeadPresetsLabel = "Midbox Lead Presets";
+    Localization.midboxFMPresetsLabel = "Midbox FM Presets";
+    Localization.midboxWavetablePresetsLabel = "Midbox Wavetable Presets";
+    Localization.midboxSFXPresetsLabel = "Midbox SFX Presets";
+    Localization.midboxBassPresetsLabel = "Midbox Bass Presets";
+    Localization.midboxSynthPresetsLabel = "Midbox Synth Presets";
+    Localization.beepboxSupersawPresetsLabel = "Beepbox Supersaw Presets";
+    Localization.retroPresetsLabel = "Retro Presets";
+    Localization.keyboardPresetsLabel = "Keyboard Presets";
+    Localization.idiophonePresetsLabel = "Idiophone Presets";
+    Localization.guitarPresetsLabel = "Guitar Presets";
+    Localization.pickedBassPresetsLabel = "Picked Bass Presets";
+    Localization.pickedStringPresetsLabel = "Picked String Presets";
+    Localization.distortionPresetsLabel = "Distortion Presets";
+    Localization.bellowsPresetsLabel = "Bellow Presets";
+    Localization.stringPresetsLabel = "String Presets";
+    Localization.vocalPresetsLabel = "Vocal Presets";
+    Localization.brassPresetsLabel = "Brass Presets";
+    Localization.reedPresetsLabel = "Reed Presets";
+    Localization.flutePresetsLabel = "Flute Presets";
+    Localization.padPresetsLabel = "Pad Presets";
+    Localization.drumPresetsLabel = "Drum Presets";
+    Localization.noveltyPresetsLabel = "Novelty Presets";
+    Localization.languagePromptLabel = "Set Language (BETA)";
+    Localization.englishDefaultLanguageLabel = "English (Default)";
+    Localization.themePromptLabel = "Set Theme";
+    Localization.theme1Label = "Beepbox Dark";
+    Localization.theme2Label = "Beepbox Light";
+    Localization.theme3Label = "Beepbox Competition Dark";
+    Localization.theme4Label = "Jummbox Dark";
+    Localization.theme5Label = "Forest";
+    Localization.theme6Label = "Canyon";
+    Localization.theme7Label = "Midnight";
+    Localization.theme8Label = "Beachcombing";
+    Localization.theme9Label = "Violet Verdant";
+    Localization.theme10Label = "Sunset";
+    Localization.theme11Label = "Autumn";
+    Localization.theme12Label = "Shadowfruit";
+    Localization.theme13Label = "Toxic";
+    Localization.theme14Label = "Roe";
+    Localization.theme15Label = "Moonlight";
+    Localization.theme16Label = "Portal";
+    Localization.theme17Label = "Fusion";
+    Localization.theme18Label = "Inverse";
+    Localization.theme19Label = "Nebula";
+    Localization.theme20Label = "Roe Light";
+    Localization.theme21Label = "Energized";
+    Localization.theme22Label = "Neapolitan";
+    Localization.theme23Label = "Poly";
+    Localization.theme24Label = "Midbox";
+    Localization.theme25Label = "Old Jummbox Dark";
+    Localization.theme26Label = "Mono (Old Poly)";
+    Localization.theme27Label = "Blutonium";
+    Localization.layoutPromptLabel = "Layout";
+    Localization.layout1Label = "Small";
+    Localization.layout2Label = "Long";
+    Localization.layout3Label = "Tall";
+    Localization.layout4Label = "Wide (JB)";
+    Localization.keybindSetupLabel = "Keybind Setup...";
+    Localization.noteRecordingPromptLabel = "Note Recording Setup";
+    Localization.playSpaceLabel = "Play (Space)";
+    Localization.pauseSpaceLabel = "Pause (Space)";
+    Localization.recordCTRLSpaceLabel = "Record (CTRL + Space)";
+    Localization.stopRecordSpaceLabel = "Stop Recording (Space)";
+    Localization.prevBarLBrackLabel = "Previous Bar (Left Bracket)";
+    Localization.nextBarRBrackLabel = "Next Bar (Right Bracket)";
+    Localization.mainVolumeLabel = "Main Volume";
+    Localization.simpleFilter1Label = "Low-pass Filter Cutoff Frequency";
+    Localization.simpleFilter2Label = "Low-pass Filter Peak Resonance";
+    Localization.semitonesLabel = " semitone(s)";
+    Localization.centsLabel = " cent(s)";
+    Localization.beatsLabel = " beat(s)";
+    Localization.modSettingsLabel = "Modulator Settings";
+    Localization.modOptions1Label = "none";
+    Localization.modOptions2Label = "song";
+    Localization.modOptions3Label = "pitch ";
+    Localization.modOptions4Label = "noise ";
+    Localization.modOptions5Label = "all";
+    Localization.modOptions6Label = "active";
+    Localization.modOptions7Label = "song volume";
+    Localization.modOptions8Label = "tempo";
+    Localization.modOptions9Label = "song reverb";
+    Localization.modOptions10Label = "next bar";
+    Localization.modOptions11Label = "song detune";
+    Localization.modOptions12Label = "note volume";
+    Localization.modOptions13Label = "mix volume";
+    Localization.loadPresetLabel = "Load Preset";
+    Localization.waveform1Label = "sine";
+    Localization.waveform2Label = "triangle";
+    Localization.waveform3Label = "sawtooth";
+    Localization.waveform4Label = "pulse width";
+    Localization.waveform5Label = "ramp";
+    Localization.waveform6Label = "trapezoid";
+    Localization.waveform7Label = "clang";
+    Localization.waveform8Label = "metal";
+    Localization.waveform9Label = "rounded";
+    Localization.waveform10Label = "secant";
+    Localization.waveform11Label = "double sine";
+    Localization.waveform12Label = "white noise";
+    Localization.envelope1Label = "none";
+    Localization.envelope2Label = "note size";
+    Localization.envelope3Label = "punch";
+    Localization.envelope4Label = "flare 0";
+    Localization.envelope5Label = "flare 1";
+    Localization.envelope6Label = "flare 2";
+    Localization.envelope7Label = "flare 3";
+    Localization.envelope8Label = "flare 4";
+    Localization.envelope9Label = "flare 5";
+    Localization.envelope10Label = "flare 6";
+    Localization.envelope11Label = "twang 0";
+    Localization.envelope12Label = "twang 1";
+    Localization.envelope13Label = "twang 2";
+    Localization.envelope14Label = "twang 3";
+    Localization.envelope15Label = "twang 4";
+    Localization.envelope16Label = "twang 5";
+    Localization.envelope17Label = "twang 6";
+    Localization.envelope18Label = "swell 0";
+    Localization.envelope19Label = "swell 1";
+    Localization.envelope20Label = "swell 2";
+    Localization.envelope21Label = "swell 3";
+    Localization.envelope22Label = "swell 4";
+    Localization.envelope23Label = "swell 5";
+    Localization.envelope24Label = "swell 6";
+    Localization.envelope25Label = "swell 7";
+    Localization.envelope26Label = "full tremolo 0";
+    Localization.envelope27Label = "full tremolo 1";
+    Localization.envelope28Label = "full tremolo 2";
+    Localization.envelope29Label = "full tremolo 3";
+    Localization.envelope30Label = "full tremolo 4";
+    Localization.envelope31Label = "full tremolo 5";
+    Localization.envelope32Label = "semi tremolo 0";
+    Localization.envelope33Label = "semi tremolo 1";
+    Localization.envelope34Label = "semi tremolo 2";
+    Localization.envelope35Label = "semi tremolo 3";
+    Localization.envelope36Label = "semi tremolo 4";
+    Localization.envelope37Label = "semi tremolo 5";
+    Localization.envelope38Label = "decay 0";
+    Localization.envelope39Label = "decay 1";
+    Localization.envelope40Label = "decay 2";
+    Localization.envelope41Label = "decay 3";
+    Localization.envelope42Label = "decay 4";
+    Localization.envelope43Label = "decay 5";
+    Localization.envelope44Label = "modbox trill";
+    Localization.envelope45Label = "modbox blip";
+    Localization.envelope46Label = "modbox click";
+    Localization.envelope47Label = "modbox bow";
+    Localization.envelope48Label = "wibble 0";
+    Localization.envelope49Label = "wibble 1";
+    Localization.envelope50Label = "wibble 2";
+    Localization.envelope51Label = "wibble 3";
+    Localization.envelope52Label = "wibble 4";
+    Localization.envelope53Label = "linear 0";
+    Localization.envelope54Label = "linear 1";
+    Localization.envelope55Label = "linear 2";
+    Localization.envelope56Label = "linear 3";
+    Localization.envelope57Label = "linear 4";
+    Localization.envelope58Label = "linear 5";
+    Localization.envelope59Label = "rise 0";
+    Localization.envelope60Label = "rise 1";
+    Localization.envelope61Label = "rise 2";
+    Localization.envelope62Label = "rise 3";
+    Localization.envelope63Label = "rise 4";
+    Localization.envelope64Label = "rise 5";
+    Localization.hoverText1Label = "Voice ";
+    Localization.hoverText2Label = "Modulator ";
+    Localization.hoverText3Label = " Frequency";
+    Localization.hoverText4Label = " Volume";
+    Localization.hoverText5Label = " Amplitude";
+    Localization.hoverText6Label = "Frequency";
+    Localization.hoverText7Label = "Volume";
+    Localization.hoverText8Label = "Waveform";
+    Localization.hoverText9Label = "Pulse Width";
+    Localization.hoverText10Label = "Zoom In";
+    Localization.hoverText11Label = "Zoom Out";
+    Localization.hoverText12Label = "Feedback Amplitude";
+    Localization.hoverText13Label = "Filter Envelope";
+    Localization.dynamismLabel = "Dynamism:";
+    Localization.spreadLabel = "Spread:";
+    Localization.sawToPulseLabel = "Saw↔Pulse:";
+    Localization.exportPrompt1Label = "Export to .wav file.";
+    Localization.exportPrompt2Label = "Export to .mp3 file.";
+    Localization.exportPrompt3Label = "Export to .mid file.";
+    Localization.exportPrompt4Label = "Export to .json file.";
+    Localization.exportPrompt5Label = "Export to .html file.";
+    Localization.exportPrompt6Label = "Export";
+    Localization.exportPrompt7Label = "Export Options";
+    Localization.exportPrompt8Label = "File Name:";
+    Localization.exportPrompt9Label = "Length:";
+    Localization.exportPrompt10Label = "Intro:";
+    Localization.exportPrompt11Label = "Loop Count:";
+    Localization.exportPrompt12Label = "Outro:";
+    Localization.exportPrompt13Label = "Encoding...";
+    Localization.exportPromptLargeTextLabel = "Exporting can be slow if there is lots of data in the song. Reloading the page or clicking the X will cancel it.";
+    Localization.songCorruptedLabel = "It appears that the song data has been corrupted. Try to recover the last working version of the song from the \"Recover Recent Song...\" option in Midbox's \"File/Sharing\" menu, or undo the changes that corrupted the song using the undo button on your browser.";
+    Localization.songRecoveryPromptLabel = "Song Recovery";
+    Localization.songRecoveryPromptLargeText1Label = "This is a temporary list of songs you have recently modified. Make sure that you have backups for the songs you care about, or perhaps a place to store them. If anything goes wrong, check here to find your song.";
+    Localization.songRecoveryPromptLargeText2Label = "(If \"Display Song Data in URL\" is enabled in your preferences, then you may also be able to find song versions in your browser history. However, song recovery won't work if you were browsing in private/incognito mode.)";
+    Localization.songRecoveryPromptLargeText3Label = "There are no songs to be recovered yet. Try making a song!";
+    Localization.importPrompt1Label = "Import";
+    Localization.importPromptLargeText1Label = "Midbox songs exported and re-imported as .json files. You could also use other means to make .json files for Midbox as long as they follow the same structure.";
+    Localization.importPromptLargeText2Label = "Midbox can also (crudely) import .mid files. There are many tools available for creating .mid files. Shorter and simpler songs are more likely to work well.";
+    Localization.importPromptLargeText3Label = "If you are importing a .json from another Beepbox mod, you can select which mod the .json is coming from here so the import will be more accurate.";
+    Localization.moveNotesSidewaysPrompt1Label = "Overflow notes across bars.";
+    Localization.moveNotesSidewaysPrompt2Label = "Wrap notes around within bars.";
+    Localization.moveNotesSidewaysPrompt3Label = "Move Notes Sideways";
+    Localization.moveNotesSidewaysPrompt4Label = "Beats to move:";
+    Localization.moveNotesSidewaysPrompt5Label = "(Negative is left, positive is right.)";
+    Localization.beatsPerBarPrompt1Label = "Splice beats at end of bars.";
+    Localization.beatsPerBarPrompt2Label = "Stretch notes to fit in bars.";
+    Localization.beatsPerBarPrompt3Label = "Overflow notes across bars.";
+    Localization.beatsPerBarPrompt4Label = "Beats Per Bar";
+    Localization.beatsPerBarPrompt5Label = "Beats per bar:";
+    Localization.beatsPerBarPrompt6Label = "(Multiples of 3 or 4 are recommended.)";
+    Localization.songDurationPrompt1Label = "Apply change at end of song.";
+    Localization.songDurationPrompt2Label = "Apply change at beginning of song.";
+    Localization.songDurationPrompt3Label = "Song Length";
+    Localization.songDurationPrompt4Label = "Bars per song:";
+    Localization.songDurationPrompt5Label = "(Tip: You can press the \"enter\" key on your keyboard to quickly add a bar.)";
+    Localization.channelSettingsPrompt1Label = "Channel Settings";
+    Localization.channelSettingsPrompt2Label = "Pitch channels:";
+    Localization.channelSettingsPrompt3Label = "Drum channels:";
+    Localization.channelSettingsPrompt4Label = "Mod channels:";
+    Localization.channelSettingsPrompt5Label = "Available patterns per channel:";
+    Localization.channelSettingsPrompt6Label = "Simultaneous instruments";
+    Localization.channelSettingsPrompt7Label = "per channel:";
+    Localization.channelSettingsPrompt8Label = "Different instruments";
+    Localization.channelSettingsPrompt9Label = "per pattern:";
+    Localization.limiterSettingsPrompt1Label = "In";
+    Localization.limiterSettingsPrompt2Label = "Out";
+    Localization.limiterSettingsPrompt3Label = "Volume";
+    Localization.limiterSettingsPrompt4Label = "Gain";
+    Localization.limiterSettingsPrompt5Label = "Limit Decay";
+    Localization.limiterSettingsPrompt6Label = "Limit Rise";
+    Localization.limiterSettingsPrompt7Label = "Compressor Threshold";
+    Localization.limiterSettingsPrompt8Label = "Limiter Threshold";
+    Localization.limiterSettingsPrompt9Label = "Compressor Ratio";
+    Localization.limiterSettingsPrompt10Label = "Limiter Ratio";
+    Localization.limiterSettingsPrompt11Label = "Master Gain";
+    Localization.limiterSettingsPrompt12Label = "Limiter Options";
+    Localization.limiterSettingsPrompt13Label = "Boost";
+    Localization.limiterSettingsPrompt14Label = "Cutoff";
+    Localization.limiterSettingsPrompt15Label = "Threshold:";
+    Localization.limiterSettingsPrompt16Label = "Ratio:";
+    Localization.limiterSettingsPrompt17Label = "Limit Decay:";
+    Localization.limiterSettingsPrompt18Label = "Limit Rise:";
+    Localization.limiterSettingsPrompt19Label = "Master Gain:";
+    Localization.noteRecordingPrompt1Label = "Simple shortcuts | Use CAPS LOCK to play notes.";
+    Localization.noteRecordingPrompt2Label = "Simple notes | Press ";
+    Localization.noteRecordingPrompt3Label = " for shortcuts.";
+    Localization.noteRecordingPrompt4Label = "Wicki-Hayden";
+    Localization.noteRecordingPrompt5Label = "Selected song scale";
+    Localization.noteRecordingPrompt6Label = "Piano starting at C major";
+    Localization.noteRecordingPrompt7Label = "Piano starting at A minor";
+    Localization.noteRecordingPrompt8Label = "Piano transposing C major to song key";
+    Localization.noteRecordingPrompt9Label = "Piano transposing A minor to song key";
+    Localization.noteRecordingPrompt10Label = "Note Recording Setup";
+    Localization.noteRecordingPrompt11Label = "Add ● record button next to ▶ play button:";
+    Localization.noteRecordingPrompt12Label = "Snap recorded notes to the song's rhythm:";
+    Localization.noteRecordingPrompt13Label = "Ignore notes not in the song's scale:";
+    Localization.noteRecordingPrompt14Label = "Keyboard layout:";
+    Localization.noteRecordingPrompt15Label = "Hear metronome while recording:";
+    Localization.noteRecordingPrompt16Label = "Count-in 1 bar of metronome before recording:";
+    Localization.noteRecordingPrompt17Label = "Enable MIDI performance:";
+    Localization.noteRecordingPrompt18Label = "Disabled";
+    Localization.noteRecordingPrompt19Label = "Before";
+    Localization.noteRecordingPrompt20Label = "After";
+    Localization.noteRecordingPrompt21Label = "Bass Offset:";
+    Localization.noteRecordingPromptLargeText1Part1Label = "Midbox can record notes as you perform them. You can start recording by pressing Ctrl+Space (or ";
+    Localization.noteRecordingPromptLargeText1Part2Label = "P).";
+    Localization.noteRecordingPromptLargeText2Label = "While recording, you can perform notes on your keyboard!";
+    Localization.noteRecordingPromptLargeText3Label = "When not recording, you can use the computer keyboard either for shortcuts (like C and V for copy and paste) or for performing notes, depending on this mode:";
+    Localization.noteRecordingPromptLargeText4Label = "Performing music takes practice! Try slowing the tempo and using this metronome to help you keep a rhythm.";
+    Localization.noteRecordingPromptLargeText5Part1Label = "If you have a ";
+    Localization.noteRecordingPromptLargeText5Part2Label = "compatible browser";
+    Localization.noteRecordingPromptLargeText5Part3Label = " on a device connected to a MIDI keyboard, you can use it to perform notes in Midbox! You could also buy other things like a Dubler to hum notes into a microphone while wearing headphones.";
+    Localization.noteRecordingPromptLargeText6Label = "The range of pitches available to play via your computer keyboard is affected by the octave scrollbar of the currently selected channel.";
+    Localization.noteRecordingPromptLargeText7Label = "If you set the channel offset below to 'before' or 'after', notes below the middle octave in the view will be 'bass' notes, and placed in the channel before or after the viewed one. Using this, you can play bass and lead at the same time.";
+    Localization.noteRecordingPromptLargeText8Label = "Once you enable the setting, the keyboard layout above will darken to denote the new bass notes. The notes will be recorded with independent timing and this works with MIDI devices, too. Be aware that the octave offset of both used channels will impact how high/low the bass/lead are relative to one another.";
+    Localization.noteRecordingPromptLargeText9Label = "Recorded notes often overlap such that one note ends after the next note already started. In Midbox, these notes get split into multiple notes which may sound different when re-played than they did when you were recording. To fix the sound, you can either manually clean up the notes in the pattern editor, or you could try enabling the \"transition type\" effect on the instrument and setting it to \"continue\".";
+    Localization.sustainTypePrompt1Label = "(A) Acoustic";
+    Localization.sustainTypePrompt2Label = "(B) Bright";
+    Localization.sustainTypePrompt3Label = "String Sustain Type";
+    Localization.sustainTypePromptLargeText1Label = "This setting controls how quickly the picked string's vibration decays.";
+    Localization.sustainTypePromptLargeText2Label = "Unlike most of Midbox's instrument synthesizer features, a picked string cannot change frequency suddenly while maintaining its decay. If a tone's pitch changes suddenly (e.g. if the chord type is set to \"arpeggio\" or the transition type is set to \"continue\") then the string will be re-picked and start decaying from the beginning again, even if the envelopes don't otherwise restart.";
+    Localization.sustainTypePromptLargeText3Label = "Midbox comes with two slightly different sustain designs. You can select one here and press \"Confirm\" to confirm it.";
+    Localization.midboxMiscPresets1Label = "broken music box";
+    Localization.midboxMiscPresets2Label = "scratch string";
+    Localization.midboxMiscPresets3Label = "xylophone saw";
+    Localization.midboxMiscPresets4Label = "depths";
+    Localization.midboxMiscPresets5Label = "sawtooth pluck";
+    Localization.midboxMiscPresets6Label = "distorted guitar 1";
+    Localization.midboxMiscPresets7Label = "distorted guitar 2";
+    Localization.midboxMiscPresets8Label = "distorted guitar 3";
+    Localization.midboxMiscPresets9Label = "jingle bells";
+    Localization.midboxMiscPresets10Label = "countdown pulse";
+    Localization.midboxMiscPresets11Label = "ambient pulse 1";
+    Localization.midboxMiscPresets12Label = "ambient pulse 2";
+    Localization.midboxMiscPresets13Label = "mechanical blip";
+    Localization.midboxMiscPresets14Label = "guitar pluck";
+    Localization.midboxMiscPresets15Label = "error";
+    Localization.midboxMiscPresets16Label = "clang synth guitar";
+    Localization.midboxMiscPresets17Label = "midbox banjo 1";
+    Localization.midboxMiscPresets18Label = "corrupted vocals 1";
+    Localization.midboxMiscPresets19Label = "sine synth pluck";
+    Localization.midboxMiscPresets20Label = "electronic pluck 1";
+    Localization.midboxMiscPresets21Label = "freq-crushed xylophone";
+    Localization.midboxMiscPresets22Label = "electric guitar";
+    Localization.midboxMiscPresets23Label = "electronic pluck 2";
+    Localization.midboxMiscPresets24Label = "supersaw dist. guitar";
+    Localization.midboxMiscPresets25Label = "corrupted vocals 2";
+    Localization.midboxMiscPresets26Label = "lobby marimba";
+    Localization.midboxMiscPresets27Label = "electronic pluck 3";
+    Localization.midboxMiscPresets28Label = "dirty distortion guitar";
+    Localization.midboxMiscPresets29Label = "midbox banjo 2";
+    Localization.midboxMiscPresets30Label = "rave flute";
+    Localization.midboxMiscPresets31Label = "phantom choir";
+    Localization.midboxMiscPresets32Label = "FM wubber";
+    Localization.midboxMiscPresets33Label = "bitcrushian guitar";
+    Localization.midboxMiscPresets34Label = "intense sitar";
+    Localization.midboxDubstepPresets1Label = "dubstep bwayyyy";
+    Localization.midboxDubstepPresets2Label = "dubstep bass hum";
+    Localization.midboxDubstepPresets3Label = "dubstep yaa";
+    Localization.midboxDubstepPresets4Label = "dubstep yeoww";
+    Localization.midboxDubstepPresets5Label = "dubstep lead 1";
+    Localization.midboxDubstepPresets6Label = "dubstep dyaii";
+    Localization.midboxDubstepPresets7Label = "dubstep alarm";
+    Localization.midboxDubstepPresets8Label = "crispy growl";
+    Localization.midboxDubstepPresets9Label = "distorted growl";
+    Localization.midboxDubstepPresets10Label = "dance growl";
+    Localization.midboxDubstepPresets11Label = "dubstep saw 1";
+    Localization.midboxDubstepPresets12Label = "retro dubstep growl";
+    Localization.midboxDubstepPresets13Label = "heavy growl";
+    Localization.midboxDubstepPresets14Label = "bouncy wub";
+    Localization.midboxDubstepPresets15Label = "dubstep lead 2";
+    Localization.midboxDubstepPresets16Label = "dubstep grinder 1";
+    Localization.midboxDubstepPresets17Label = "dubstep grinder 2";
+    Localization.midboxDubstepPresets18Label = "dubstep robot";
+    Localization.midboxDubstepPresets19Label = "terror";
+    Localization.midboxDubstepPresets20Label = "heavily distorted bwah";
+    Localization.midboxDubstepPresets21Label = "recharge synth";
+    Localization.midboxDubstepPresets22Label = "dynamic growler 1 (morph)";
+    Localization.midboxDubstepPresets23Label = "dynamic growler 2 (morph)";
+    Localization.midboxDubstepPresets24Label = "dubstep saw 2";
+    Localization.midboxDubstepPresets25Label = "dubstep roar (morph)";
+    Localization.midboxDubstepPresets26Label = "creak saw";
+    Localization.midboxDubstepPresets27Label = "heavily crushed vocals";
+    Localization.midboxDubstepPresets28Label = "eclipse";
+    Localization.midboxDubstepPresets29Label = "disruptive growl";
+    Localization.midboxDubstepPresets30Label = "system failure";
+    Localization.midboxDubstepPresets31Label = "noise growl";
+    Localization.midboxNoisePresets1Label = "hollow retro riser";
+    Localization.midboxNoisePresets2Label = "hollow snare-clap";
+    Localization.midboxNoisePresets3Label = "extreme noise";
+    Localization.midboxDrumPresets1Label = "enhanced synth kick";
+    Localization.midboxDrumPresets2Label = "heavy kick";
+    Localization.midboxDrumPresets3Label = "otherworldly kick";
+    Localization.midboxDrumPresets4Label = "tight kick";
+    Localization.midboxDrumPresets5Label = "odd snare";
+    Localization.midboxDrumPresets6Label = "spectrum hi-hat";
+    Localization.midboxDrumPresets7Label = "generic kick";
+    Localization.midboxDrumPresets8Label = "kick bass 1";
+    Localization.midboxDrumPresets9Label = "kick bass 2";
+    Localization.midboxDrumPresets10Label = "kick bass 3";
+    Localization.midboxDrumPresets11Label = "FM hi-hat";
+    Localization.midboxDrumPresets12Label = "FM deep clap";
+    Localization.midboxDrumPresets13Label = "high blip snare (setpiece)";
+    Localization.midboxDrumPresets14Label = "heavy boop kick (setpiece)";
+    Localization.midboxDrumPresets15Label = "corruption drumset";
+    Localization.midboxDrumPresets16Label = "strong synth kick";
+    Localization.midboxDrumPresets17Label = "percussive bells (setpiece)";
+    Localization.midboxDrumPresets18Label = "slippery hi-hat";
+    Localization.midboxPianoPresets1Label = "blessed piano";
+    Localization.midboxPianoPresets2Label = "desolated piano";
+    Localization.midboxPianoPresets3Label = "rough glistening piano";
+    Localization.midboxPianoPresets4Label = "soft glistening piano";
+    Localization.midboxPianoPresets5Label = "bit-crushed piano";
+    Localization.midboxPianoPresets6Label = "another piano";
+    Localization.midboxPianoPresets7Label = "mellow piano";
+    Localization.midboxPianoPresets8Label = "pandorasbox pianoC4";
+    Localization.midboxLeadPresets1Label = "disco vocal lead";
+    Localization.midboxLeadPresets2Label = "distorted lead 1";
+    Localization.midboxLeadPresets3Label = "scratch lead";
+    Localization.midboxLeadPresets4Label = "echo pulse lead 1";
+    Localization.midboxLeadPresets5Label = "random lead";
+    Localization.midboxLeadPresets6Label = "retro ghostly lead";
+    Localization.midboxLeadPresets7Label = "industrial lead";
+    Localization.midboxLeadPresets8Label = "chaotic pulse";
+    Localization.midboxLeadPresets9Label = "squealing lead";
+    Localization.midboxLeadPresets10Label = "distorted lead 2";
+    Localization.midboxLeadPresets11Label = "random lead distortion";
+    Localization.midboxLeadPresets12Label = "harmonized chipwave";
+    Localization.midboxLeadPresets13Label = "freq-crushed sawtooth lead";
+    Localization.midboxLeadPresets14Label = "retro pulse";
+    Localization.midboxLeadPresets15Label = "square wave harp";
+    Localization.midboxLeadPresets16Label = "echo pulse lead 2";
+    Localization.midboxLeadPresets17Label = "casino lead";
+    Localization.midboxLeadPresets18Label = "chip pluck";
+    Localization.midboxFMPresets1Label = "FM electronic guitar";
+    Localization.midboxFMPresets2Label = "FM electronic bass";
+    Localization.midboxFMPresets3Label = "FM guitar";
+    Localization.midboxFMPresets4Label = "FM pluck bass";
+    Localization.midboxFMPresets5Label = "FM lead";
+    Localization.midboxFMPresets6Label = "FM distortion guitar";
+    Localization.midboxFMPresets7Label = "FM chipper bass";
+    Localization.midboxWavetablePresets1Label = "multi-sawtooth pulse";
+    Localization.midboxWavetablePresets2Label = "sawtooth pulse width";
+    Localization.midboxWavetablePresets3Label = "square -> sawtooth";
+    Localization.midboxWavetablePresets4Label = "square -> triangle";
+    Localization.midboxWavetablePresets5Label = "omni-chipwave";
+    Localization.midboxSFXPresets1Label = "scream";
+    Localization.midboxSFXPresets2Label = "terminal blip";
+    Localization.midboxSFXPresets3Label = "doom triangle";
+    Localization.midboxSFXPresets4Label = "siren";
+    Localization.midboxSFXPresets5Label = "cicada buzz";
+    Localization.midboxSFXPresets6Label = "telephone ring 2";
+    Localization.midboxBassPresets1Label = "bow bass";
+    Localization.midboxBassPresets2Label = "FM punch bass";
+    Localization.midboxBassPresets3Label = "corrupted sine bass";
+    Localization.midboxBassPresets4Label = "harsh mechanical bass 1";
+    Localization.midboxBassPresets5Label = "growling bass";
+    Localization.midboxBassPresets6Label = "chorus bass";
+    Localization.midboxBassPresets7Label = "smooth bass";
+    Localization.midboxBassPresets8Label = "chipped triangle bass 1";
+    Localization.midboxBassPresets9Label = "chipped triangle bass 2";
+    Localization.midboxBassPresets10Label = "sawscape bass";
+    Localization.midboxBassPresets11Label = "harsh mechanical bass 2";
+    Localization.midboxSynthPresets1Label = "high pad";
+    Localization.midboxSynthPresets2Label = "magical pulse";
+    Localization.midboxSynthPresets3Label = "spectrum pad";
+    Localization.midboxSynthPresets4Label = "saturn pad";
+    Localization.midboxSynthPresets5Label = "build-up pad";
+    Localization.midboxSynthPresets6Label = "hyper saw synth";
+    Localization.midboxSynthPresets7Label = "ambient pad";
+    Localization.midboxSynthPresets8Label = "electronic rounded synth";
+    Localization.midboxSynthPresets9Label = "punch synth";
+    Localization.midboxSynthPresets10Label = "pulse synth";
+    Localization.midboxSynthPresets11Label = "supersaw brass";
+    Localization.midboxSynthPresets12Label = "supersaw click";
+    Localization.midboxSynthPresets13Label = "space pad";
+    Localization.midboxSynthPresets14Label = "hypersaw synth";
+    Localization.midboxSynthPresets15Label = "spectrum strings";
+    Localization.midboxSynthPresets16Label = "shifter synth";
+    Localization.midboxSynthPresets17Label = "techno strings";
+    Localization.midboxSynthPresets18Label = "bowed bell";
+    Localization.midboxSynthPresets19Label = "future lead";
+    Localization.beepboxSupersawPresets1Label = "supersaw lead";
+    Localization.beepboxSupersawPresets2Label = "supersaw string";
+    Localization.beepboxSupersawPresets3Label = "supersaw pad";
+    Localization.retroPresets1Label = "square wave";
+    Localization.retroPresets2Label = "triangle wave";
+    Localization.retroPresets3Label = "square lead";
+    Localization.retroPresets4Label = "sawtooth lead 1";
+    Localization.retroPresets5Label = "sawtooth lead 2";
+    Localization.retroPresets6Label = "chip noise";
+    Localization.retroPresets7Label = "FM twang";
+    Localization.retroPresets8Label = "FM bass";
+    Localization.retroPresets9Label = "FM flute";
+    Localization.retroPresets10Label = "FM organ";
+    Localization.retroPresets11Label = "NES Pulse";
+    Localization.retroPresets12Label = "Gameboy Pulse";
+    Localization.retroPresets13Label = "VRC6 Sawtooth";
+    Localization.retroPresets14Label = "Atari Square";
+    Localization.retroPresets15Label = "Atari Bass";
+    Localization.retroPresets16Label = "Sunsoft Bass";
+    Localization.retroPresets17Label = "FM sine";
+    Localization.keyboardPresets1Label = "grand piano 1";
+    Localization.keyboardPresets2Label = "bright piano";
+    Localization.keyboardPresets3Label = "electric grand";
+    Localization.keyboardPresets4Label = "honky-tonk piano";
+    Localization.keyboardPresets5Label = "electric piano 1";
+    Localization.keyboardPresets6Label = "electric piano 2";
+    Localization.keyboardPresets7Label = "harpsichord";
+    Localization.keyboardPresets8Label = "clavinet";
+    Localization.keyboardPresets9Label = "dulcimer";
+    Localization.keyboardPresets10Label = "grand piano 2";
+    Localization.idiophonePresets1Label = "celesta";
+    Localization.idiophonePresets2Label = "glockenspiel";
+    Localization.idiophonePresets3Label = "music box 1";
+    Localization.idiophonePresets4Label = "music box 2";
+    Localization.idiophonePresets5Label = "vibraphone";
+    Localization.idiophonePresets6Label = "marimba";
+    Localization.idiophonePresets7Label = "kalimba";
+    Localization.idiophonePresets8Label = "xylophone";
+    Localization.idiophonePresets9Label = "tubular bell";
+    Localization.idiophonePresets10Label = "bell synth";
+    Localization.idiophonePresets11Label = "rain drop";
+    Localization.idiophonePresets12Label = "crystal";
+    Localization.idiophonePresets13Label = "tinkle bell";
+    Localization.idiophonePresets14Label = "agogo";
+    Localization.guitarPresets1Label = "nylon guitar";
+    Localization.guitarPresets2Label = "steel guitar";
+    Localization.guitarPresets3Label = "jazz guitar";
+    Localization.guitarPresets4Label = "clean guitar";
+    Localization.guitarPresets5Label = "muted guitar";
+    Localization.pickedBassPresets1Label = "acoustic bass";
+    Localization.pickedBassPresets2Label = "fingered bass";
+    Localization.pickedBassPresets3Label = "picked bass";
+    Localization.pickedBassPresets4Label = "fretless bass";
+    Localization.pickedBassPresets5Label = "slap bass 1";
+    Localization.pickedBassPresets6Label = "slap bass 2";
+    Localization.pickedBassPresets7Label = "bass synth 1";
+    Localization.pickedBassPresets8Label = "bass synth 2";
+    Localization.pickedBassPresets9Label = "bass & lead";
+    Localization.pickedBassPresets10Label = "dubstep yoi yoi";
+    Localization.pickedStringPresets1Label = "pizzicato strings";
+    Localization.pickedStringPresets2Label = "harp";
+    Localization.pickedStringPresets3Label = "sitar";
+    Localization.pickedStringPresets4Label = "banjo";
+    Localization.pickedStringPresets5Label = "ukulele";
+    Localization.pickedStringPresets6Label = "shamisen";
+    Localization.pickedStringPresets7Label = "koto";
+    Localization.distortionPresets1Label = "overdrive guitar";
+    Localization.distortionPresets2Label = "distortion guitar";
+    Localization.distortionPresets3Label = "charango synth";
+    Localization.distortionPresets4Label = "guitar harmonics";
+    Localization.distortionPresets5Label = "PWM overdrive";
+    Localization.distortionPresets6Label = "PWM distortion";
+    Localization.distortionPresets7Label = "FM overdrive";
+    Localization.distortionPresets8Label = "FM distortion";
+    Localization.bellowsPresets1Label = "drawbar organ 1";
+    Localization.bellowsPresets2Label = "drawbar organ 2";
+    Localization.bellowsPresets3Label = "percussive organ";
+    Localization.bellowsPresets4Label = "rock organ";
+    Localization.bellowsPresets5Label = "pipe organ";
+    Localization.bellowsPresets6Label = "reed organ";
+    Localization.bellowsPresets7Label = "accordian";
+    Localization.bellowsPresets8Label = "bandoneon";
+    Localization.bellowsPresets9Label = "bagpipe";
+    Localization.stringPresets1Label = "violin 1";
+    Localization.stringPresets2Label = "viola";
+    Localization.stringPresets3Label = "cello";
+    Localization.stringPresets4Label = "contrabass";
+    Localization.stringPresets5Label = "fiddle";
+    Localization.stringPresets6Label = "tremolo strings";
+    Localization.stringPresets7Label = "strings";
+    Localization.stringPresets8Label = "slow strings";
+    Localization.stringPresets9Label = "strings synth 1";
+    Localization.stringPresets10Label = "strings synth 2";
+    Localization.stringPresets11Label = "orchestra hit 1";
+    Localization.stringPresets12Label = "violin 2";
+    Localization.stringPresets13Label = "orchestra hit 2";
+    Localization.vocalPresets1Label = "choir soprano";
+    Localization.vocalPresets2Label = "choir tenor";
+    Localization.vocalPresets3Label = "choir bass";
+    Localization.vocalPresets4Label = "solo soprano";
+    Localization.vocalPresets5Label = "solo tenor";
+    Localization.vocalPresets6Label = "solo bass";
+    Localization.vocalPresets7Label = "voice ooh";
+    Localization.vocalPresets8Label = "voice synth";
+    Localization.vocalPresets9Label = "vox synth lead";
+    Localization.vocalPresets10Label = "tiny robot";
+    Localization.vocalPresets11Label = "yowie";
+    Localization.vocalPresets12Label = "mouse";
+    Localization.vocalPresets13Label = "gum drop";
+    Localization.vocalPresets14Label = "echo drop";
+    Localization.vocalPresets15Label = "dark choir";
+    Localization.brassPresets1Label = "trumpet";
+    Localization.brassPresets2Label = "trombone";
+    Localization.brassPresets3Label = "tuba";
+    Localization.brassPresets4Label = "muted trumpet";
+    Localization.brassPresets5Label = "french horn";
+    Localization.brassPresets6Label = "brass section";
+    Localization.brassPresets7Label = "brass synth 1";
+    Localization.brassPresets8Label = "brass synth 2";
+    Localization.brassPresets9Label = "pulse brass";
+    Localization.reedPresets1Label = "soprano sax";
+    Localization.reedPresets2Label = "alto sax";
+    Localization.reedPresets3Label = "tenor sax";
+    Localization.reedPresets4Label = "baritone sax";
+    Localization.reedPresets5Label = "sax synth";
+    Localization.reedPresets6Label = "shehnai";
+    Localization.reedPresets7Label = "oboe";
+    Localization.reedPresets8Label = "english horn";
+    Localization.reedPresets9Label = "bassoon";
+    Localization.reedPresets10Label = "clarinet";
+    Localization.reedPresets11Label = "harmonica";
+    Localization.flutePresets1Label = "flute 1";
+    Localization.flutePresets2Label = "recorder";
+    Localization.flutePresets3Label = "whistle";
+    Localization.flutePresets4Label = "ocarina";
+    Localization.flutePresets5Label = "piccolo";
+    Localization.flutePresets6Label = "shakuhachi";
+    Localization.flutePresets7Label = "pan flute";
+    Localization.flutePresets8Label = "blown bottle";
+    Localization.flutePresets9Label = "calliope";
+    Localization.flutePresets10Label = "chiffer";
+    Localization.flutePresets11Label = "breath noise";
+    Localization.flutePresets12Label = "flute 2";
+    Localization.padPresets1Label = "new age pad";
+    Localization.padPresets2Label = "warm pad";
+    Localization.padPresets3Label = "polysynth pad";
+    Localization.padPresets4Label = "space voice pad";
+    Localization.padPresets5Label = "bowed glass pad";
+    Localization.padPresets6Label = "metallic pad";
+    Localization.padPresets7Label = "sweep pad";
+    Localization.padPresets8Label = "atmosphere";
+    Localization.padPresets9Label = "brightness";
+    Localization.padPresets10Label = "goblins";
+    Localization.padPresets11Label = "sci-fi";
+    Localization.padPresets12Label = "flutter pad";
+    Localization.padPresets13Label = "feedback pad";
+    Localization.drumPresets1Label = "standard drumset";
+    Localization.drumPresets2Label = "steel pan";
+    Localization.drumPresets3Label = "steel pan synth";
+    Localization.drumPresets4Label = "timpani";
+    Localization.drumPresets5Label = "dark strike";
+    Localization.drumPresets6Label = "woodblock";
+    Localization.drumPresets7Label = "taiko drum";
+    Localization.drumPresets8Label = "melodic drum";
+    Localization.drumPresets9Label = "drum synth";
+    Localization.drumPresets10Label = "tom-tom";
+    Localization.drumPresets11Label = "metal pipe";
+    Localization.drumPresets12Label = "synth kick";
+    Localization.noveltyPresets1Label = "guitar fret noise";
+    Localization.noveltyPresets2Label = "fifth saw lead";
+    Localization.noveltyPresets3Label = "fifth swell";
+    Localization.noveltyPresets4Label = "soundtrack";
+    Localization.noveltyPresets5Label = "reverse cymbal";
+    Localization.noveltyPresets6Label = "seashore";
+    Localization.noveltyPresets7Label = "bird tweet";
+    Localization.noveltyPresets8Label = "telephone ring";
+    Localization.noveltyPresets9Label = "helicopter";
+    Localization.noveltyPresets10Label = "applause";
+    Localization.noveltyPresets11Label = "gunshot";
+    Localization.noveltyPresets12Label = "scoot";
+    Localization.noveltyPresets13Label = "buzz saw";
+    Localization.noveltyPresets14Label = "mosquito";
+    Localization.noveltyPresets15Label = "breathing";
+    Localization.noveltyPresets16Label = "klaxon synth";
+    Localization.noveltyPresets17Label = "theremin";
+    Localization.noveltyPresets18Label = "sonar ping";
+    Localization.songPlayer1Label = "✎ Edit";
+    Localization.songPlayer2Label = "⎘ Copy URL";
+    Localization.songPlayer3Label = "⤳ Share";
+    Localization.songPlayer4Label = "⇱ Fullscreen";
+    Localization.songPlayer5Label = "Loop";
+    Localization.songPlayer6Label = "Volume";
+    Localization.songPlayer7Label = "Zoom";
+    const language = (_a$1 = window.localStorage.getItem("language")) !== null && _a$1 !== void 0 ? _a$1 : "english";
+    if (language == "spanish") {
+        Localization.confirmLabel = "Confirmar";
+        Localization.resetLabel = "Resetear";
+        Localization.playLabel = "Reproducir";
+        Localization.shortenedPlayLabel = "Repro.";
+        Localization.pauseLabel = "Pausa";
+        Localization.recordLabel = "Grabar";
+        Localization.stopLabel = "Parar";
+        Localization.effectsLabel = "Efectos";
+        Localization.envelopesLabel = "Envolventes";
+        Localization.instSettingsLabel = "Ajustes del Instrumento";
+        Localization.songSettingsLabel = "Ajustes de la Canción";
+        Localization.chorusLabel = "Coro:";
+        Localization.reverbLabel = "Reverberación:";
+        Localization.echoLabel = "Eco:";
+        Localization.echoDelayLabel = "Retardo de Eco:";
+        Localization.algorithmLabel = "Algoritmo:";
+        Localization.instAmountLabel = "Instrumento:";
+        Localization.volumeLabel = "Volumen:";
+        Localization.panLabel = "Paneo:";
+        Localization.panDelayLabel = "‣ Retardo:";
+        Localization.waveLabel = "Onda:";
+        Localization.noiseLabel = "Ruido:";
+        Localization.transitionLabel = "Transición:";
+        Localization.clicklessLabel = "‣ Sin Clics:";
+        Localization.continueThroughPatternLabel = "‣ En Patrón";
+        Localization.simpleLabel = "Sencillo";
+        Localization.advancedLabel = "Avanzado";
+        Localization.EQLabel = "Filt. EC:";
+        Localization.EQTypeLabel = "Tipo Filt. EC:";
+        Localization.noteFiltLabel = "Filt. Nota:";
+        Localization.noteFiltTypeLabel = "Tipo Filt. Nota:";
+        Localization.pwmLabel = "Ancho de Pulso:";
+        Localization.pitchShiftLabel = "Cambio de Tono:";
+        Localization.detuneLabel = "Desentonación:";
+        Localization.distortionLabel = "Distorsión:";
+        Localization.chordLabel = "Acordes:";
+        Localization.vibratoLabel = "Vibrato:";
+        Localization.aliasingLabel = "Aliasing:";
+        Localization.bitCrushLabel = "Compr. Bit:";
+        Localization.freqCrushLabel = "Compr. Frec:";
+        Localization.fadeLabel = "Desvanecerse:";
+        Localization.unisonLabel = "Unísono:";
+        Localization.unisonVoicesLabel = "‣ Voces: ";
+        Localization.unisonSpreadLabel = "‣ Alcance: ";
+        Localization.unisonOffsetLabel = "‣ Desplazamiento: ";
+        Localization.unisonVolumeLabel = "‣ Volumen: ";
+        Localization.unisonSignLabel = "‣ Signo: ";
+        Localization.strumSpeedLabel = "‣ Vel:";
+        Localization.slideSpeedLabel = "‣ Vel:";
+        Localization.arpSpeedLabel = "‣ Vel:";
+        Localization.envelopeSpeedLabel = "‣ Vel:";
+        Localization.timeRangeLabel = "‣ Alcance de Tiempo:";
+        Localization.perEnvelopeSpeedLabel = "‣ Env Vel:";
+        Localization.discreteEnvelopeLabel = "‣ Discreto:";
+        Localization.lowerBoundLabel = "‣ Lmt Baje:";
+        Localization.upperBoundLabel = "‣ Lmt Alto:";
+        Localization.stairsStepAmountLabel = "‣ Pasos:";
+        Localization.envelopeDelayLabel = "‣ Retraso:";
+        Localization.pitchStartLabel = "‣ Init. ";
+        Localization.pitchEndLabel = "‣ Final ";
+        Localization.pitchAmplifyLabel = "Amplifica:";
+        Localization.pitchBounceLabel = "Rebote:";
+        Localization.firstSineSpeedLabel = "‣ S1 Vel:";
+        Localization.secondSineSpeedLabel = "‣ S2 Vel:";
+        Localization.wavetableSpeedLabel = "Vel:";
+        Localization.interpolateWavesLabel = "Interpolar:";
+        Localization.resetCyclePerNoteLabel = "Ciclo por Nota:";
+        Localization.oneShotCycleLabel = "Solo-Ciclo:";
+        Localization.twoFastArpLabel = "‣ Rapido Dos-Notas:";
+        Localization.arpeggioPatternLabel = "‣ Patrón del Arpegio: ";
+        Localization.arpeggioPattern1Label = "Patrón: Normal";
+        Localization.arpeggioPattern2Label = "Patrón: Legado";
+        Localization.arpeggioPattern3Label = "Patrón: Desordenar";
+        Localization.arpeggioPattern4Label = "Patrón: Oscilar";
+        Localization.arpeggioPattern5Label = "Patrón: Escalar";
+        Localization.arpeggioPattern6Label = "Patrón: Desplazar";
+        Localization.arpeggioPattern7Label = "Patrón: Normal (Rebote)";
+        Localization.arpeggioPattern8Label = "Patrón: Desordenar (Rebote)";
+        Localization.arpeggioPattern9Label = "Patrón: Oscilar (Rebote)";
+        Localization.arpeggioPattern10Label = "Patrón: Escalar (Rebote)";
+        Localization.arpeggioPattern11Label = "Patrón: Desplazar (Rebote)";
+        Localization.vibratoDepthLabel = "‣ Profundidad:";
+        Localization.vibratoSpeedLabel = "‣ Vel:";
+        Localization.vibratoDelayLabel = "‣ Retraso:";
+        Localization.vibratoTypeLabel = "‣ Tipo:";
+        Localization.sustainLabel = "Sostener:";
+        Localization.sustain2Label = "Sostener (";
+        Localization.filterCutLabel = "Corte de Filtro:";
+        Localization.filterPeakLabel = "Pico del Filtro:";
+        Localization.spectrumLabel = "Espectro:";
+        Localization.harmonicsLabel = "Armónicos:";
+        Localization.feedbackLabel = "Respuesta:";
+        Localization.feedbackVolumeLabel = "Respue Vol:";
+        Localization.instTypeLabel = "Tipo:";
+        Localization.oscilloscopeScaleLabel = "Tamaño:";
+        Localization.songScaleLabel = "Escala:";
+        Localization.customScaleNoteLabel = "Nota ";
+        Localization.songKeyLabel = "Tono:";
+        Localization.songKeyOctaveLabel = "Octavo: ";
+        Localization.songTempoLabel = "Tempo:";
+        Localization.songRhythmLabel = "Ritmo:";
+        Localization.operFreqLabel = "Frec:";
+        Localization.operVolumeLabel = "Volumen:";
+        Localization.operWaveLabel = "Onda:";
+        Localization.modSettingLabel = "Config:";
+        Localization.modTargetLabel = "Destino:";
+        Localization.copyInstrumentLabel = "Copiar Instrumento (⇧C)";
+        Localization.pasteInstrumentLabel = "Pegar Instrumento (⇧V)";
+        Localization.snapScaleLabel = "Ajustar Notas a Escala";
+        Localization.detectKeyLabel = "Buscar Tono";
+        Localization.snapRhythmLabel = "Ajustar notas al Ritmo";
+        Localization.fileSettingsLabel = "Archivos/Compartir";
+        Localization.editSettingsLabel = "Modificar/Canción";
+        Localization.preferenceSettingsLabel = "Preferencias";
+        Localization.bitCrushHover = "Compresión de bits";
+        Localization.freqCrushHover = "Compresión de frecuencias";
+        Localization.scale1Label = "Libre / Cromática";
+        Localization.scale2Label = "Mayor";
+        Localization.scale3Label = "Menor";
+        Localization.scale4Label = "Mixolídia";
+        Localization.scale5Label = "Lídia";
+        Localization.scale6Label = "Dórica";
+        Localization.scale7Label = "Frígia";
+        Localization.scale8Label = "Locria";
+        Localization.scale9Label = "Lídia Dominante";
+        Localization.scale10Label = "Frígia Dominante";
+        Localization.scale11Label = "Mayor Armónica";
+        Localization.scale12Label = "Menor Armónica";
+        Localization.scale13Label = "Menor Melódica";
+        Localization.scale14Label = "Blues";
+        Localization.scale15Label = "Alterada";
+        Localization.scale16Label = "Mayor Pentatónica";
+        Localization.scale17Label = "Menor Pentatónica";
+        Localization.scale18Label = "De Tonos";
+        Localization.scale19Label = "Octatónica";
+        Localization.scale20Label = "Hexatónica";
+        Localization.scale21Label = "Escala Personalizado";
+        Localization.customizeScaleLabel = "Editar Escala Personalizado";
+        Localization.rhythmBy3Label = "÷3 (Trillizos)";
+        Localization.rhythmBy4Label = "÷4 (Semicorcheas)";
+        Localization.rhythmBy6Label = "÷6 (Sextillizos)";
+        Localization.rhythmBy8Label = "÷8 (Fusas)";
+        Localization.rhythmBy24Label = "÷24 (Quattuorvigntillizos)";
+        Localization.percussionLabel = "Clave-Afectado:";
+        Localization.songDetuneEffectedLabel = "DdC-Afectado:";
+        Localization.songOctaveEffectedLabel = "OdC-Afectado:";
+        Localization.editLabel = "Modificar";
+        Localization.customLabel = "personalizado";
+        Localization.newSongLabel = "Nuevo Proyecto";
+        Localization.panEffectLabel = "paneo";
+        Localization.transitionEffectLabel = "tipo de transición";
+        Localization.chordEffectLabel = "tipo de acorde";
+        Localization.pitchShiftEffectLabel = "cambio de tono";
+        Localization.detuneEffectLabel = "desafinación";
+        Localization.vibratoEffectLabel = "vibrato";
+        Localization.noteFiltEffectLabel = "filtro de nota";
+        Localization.distortionEffectLabel = "distorción";
+        Localization.bitCrushEffectLabel = "compresión";
+        Localization.chorusEffectLabel = "chorus";
+        Localization.echoEffectLabel = "eco";
+        Localization.reverbEffectLabel = "reverberacion";
+        Localization.percussionEffectLabel = "percusión";
+        Localization.wave1Label = "redondeado";
+        Localization.wave2Label = "triángulo";
+        Localization.wave3Label = "cuadrado";
+        Localization.wave4Label = "1/4 pulso";
+        Localization.wave5Label = "1/6 pulso";
+        Localization.wave6Label = "1/8 pulso";
+        Localization.wave7Label = "1/12 pulso";
+        Localization.wave8Label = "1/16 pulso";
+        Localization.wave9Label = "saw pesada";
+        Localization.wave10Label = "bass-y";
+        Localization.wave11Label = "extraño";
+        Localization.wave12Label = "sawtooth";
+        Localization.wave13Label = "doble saw";
+        Localization.wave14Label = "doble pulso";
+        Localization.wave15Label = "puntiagudo";
+        Localization.wave16Label = "senoidal";
+        Localization.wave17Label = "flauta";
+        Localization.wave18Label = "arpa";
+        Localization.wave19Label = "clarinete afilado";
+        Localization.wave20Label = "clarinete suave";
+        Localization.wave21Label = "saxo alto";
+        Localization.wave22Label = "fagot";
+        Localization.wave23Label = "trompeta";
+        Localization.wave24Label = "guitarra eléctrica";
+        Localization.wave25Label = "órgano";
+        Localization.wave26Label = "flauta de pan";
+        Localization.wave27Label = "desperfecto";
+        Localization.wave28Label = "senoidal preciso";
+        Localization.wave29Label = "triángulo preciso";
+        Localization.wave30Label = "secante";
+        Localization.wave31Label = "desperfecto 2";
+        Localization.wave32Label = "trapezoide";
+        Localization.wave33Label = "trapezoide preciso";
+        Localization.noise1Label = "retro";
+        Localization.noise2Label = "blanco";
+        Localization.noise3Label = "tañido";
+        Localization.noise4Label = "zumbido";
+        Localization.noise5Label = "hondonada";
+        Localization.noise6Label = "brillar";
+        Localization.noise7Label = "profundo";
+        Localization.noise8Label = "cortador";
+        Localization.noise9Label = "metálico";
+        Localization.noise10Label = "estático";
+        Localization.noise11Label = "tañido retro";
+        Localization.noise12Label = "carillón";
+        Localization.noise13Label = "áspero";
+        Localization.noise14Label = "trino";
+        Localization.noise15Label = "periódico desafinado";
+        Localization.noise16Label = "tarola";
+        Localization.copyLabel = "Copiar";
+        Localization.pasteLabel = "Pegar";
+        Localization.randomLabel = "Aleatorizar ▾";
+        Localization.random2Label = "Aleatorizar";
+        Localization.randomPresetLabel = "Prefijar Aleatorio";
+        Localization.randomGeneratedLabel = "Generado Al Azar";
+        Localization.useSeedLabel = "Utilice Generación Semilla:";
+        Localization.seedLabel = "Semilla: ";
+        Localization.newBlankSongLabel = "+ Nueva Canción (⇧`)";
+        Localization.importSongLabel = "↑ Importar Canción... (";
+        Localization.exportSongLabel = "↓ Exportar Canción... (";
+        Localization.copyURLLabel = "⎘ Copiar URL de la Canción";
+        Localization.shareURLLabel = "⤳ Compartir URL de la Canción";
+        Localization.shortenURLLabel = "… Acortar la URL de la Canción (U)";
+        Localization.songPlayerLabel = "▶ Ver en Reproductor de Canciones (P)";
+        Localization.copyEmbedCodeLabel = "⎘ Copiar Código de Inserción HTML";
+        Localization.recoverSongLabel = "⚠ Recuperar Canción (`)";
+        Localization.undoLabel = "Deshacer (Z)";
+        Localization.redoLabel = "Rehacer (Y)";
+        Localization.copyPatternLabel = "Copiar Patrón (C)";
+        Localization.pastePatternNotesLabel = "Pegar Notas del Patrón (V)";
+        Localization.pastePatternNumbersLabel = "Pegar Números de Patrón (";
+        Localization.cutLabel = "Cortar (X)";
+        Localization.insertBarLabel = "Insertar Barra (⏎)";
+        Localization.deleteBarLabel = "Quitar Barra (⌫)";
+        Localization.insertChannelLabel = "Insertar Canal (";
+        Localization.deleteChannelLabel = "Quitar Canal (";
+        Localization.selectChannelLabel = "Seleccionar Canal (⇧A)";
+        Localization.selectAllLabel = "Seleccionar Todo (A)";
+        Localization.duplicatePatternsLabel = "Duplicar Patrón (D)";
+        Localization.moveNotesUpLabel = "Mover Notas Arriba (+ or ⇧+)";
+        Localization.moveNotesDownLabel = "Mover Notas Abajo (- or ⇧-)";
+        Localization.moveNotesSidesLabel = "Mover Notas a los Lados... (W)";
+        Localization.beatsInBarLabel = "Latidos por Barra... (B)";
+        Localization.songLengthLabel = "Cambiar Duración de la Canción... (L)";
+        Localization.channelSettingsLabel = "Configuración del Canal[es]... (Q)";
+        Localization.limiterSettingsLabel = "Configuración del Limitador... (⇧L)";
+        Localization.randomGenSettingsLabel = "Configuración de Aleatorización... (";
+        Localization.autoPlayLabel = "Reproducir Después de Cargar";
+        Localization.autoFollowLabel = "Mantener Seleccionado el Canal Actual";
+        Localization.enableNotePreviewLabel = "Escuchar Notas Añadidas";
+        Localization.showPianoLabel = "Mostrar Piano";
+        Localization.showFifthLabel = "Mostrar la Quinta";
+        Localization.notesOutsideScaleLabel = "Agregar Notas Fuera de Escala";
+        Localization.setDefaultScaleLabel = "Mantener Escala Seleccionada como Predeterminada";
+        Localization.showAllChannelsLabel = "Mostrar Todos los Canales";
+        Localization.scrollbarLabel = "Mostrar Barra de Desplazamiento de Octavo";
+        Localization.fineNoteVolumeLabel = "Volumen de Nota Siempre Correcto";
+        Localization.channelMutingLabel = "Habilitar Silenciamiento/Cambio de Nombre de Canal";
+        Localization.displayURLInBrowserLabel = "Mostrar Datos de Canciones en la URL";
+        Localization.showPlaybackBarLabel = "Mostrar Volumen de Reproducción";
+        Localization.showOscilloscopeLabel = "Mostrar Osciloscopio";
+        Localization.setLanguageLabel = "　Ajustar Idioma...";
+        Localization.setLayoutLabel = "　Ajustar Diseño...";
+        Localization.setThemeLabel = "　Ajustar Tema...";
+        Localization.setNoteRecordingLabel = "　Grabación de Notas...";
+        Localization.unison1Label = "desactivado";
+        Localization.unison2Label = "rielar";
+        Localization.unison3Label = "tararear";
+        Localization.unison4Label = "honky tonk";
+        Localization.unison5Label = "disonante";
+        Localization.unison6Label = "quinta";
+        Localization.unison7Label = "octava";
+        Localization.unison8Label = "arqueado";
+        Localization.unison9Label = "piano";
+        Localization.unison10Label = "trinar";
+        Localization.unison11Label = "hiper";
+        Localization.unison12Label = "cima";
+        Localization.unison13Label = "cambio profundo";
+        Localization.unison14Label = "roto";
+        Localization.unison15Label = "variar";
+        Localization.unison16Label = "energético";
+        Localization.unison17Label = "solo quinta";
+        Localization.unison18Label = "quinta suplente";
+        Localization.unison19Label = "desafinado";
+        Localization.unison20Label = "sostener";
+        Localization.unison21Label = "enterrado";
+        Localization.unison22Label = "corrupto";
+        Localization.unison23Label = "octava extraño";
+        Localization.unison24Label = "torcido";
+        Localization.unison25Label = "hecking gosh";
+        Localization.transition1Label = "normal";
+        Localization.transition2Label = "interrumpir";
+        Localization.transition3Label = "continuar";
+        Localization.transition4Label = "deslizar";
+        Localization.vibrato1Label = "desactivado";
+        Localization.vibrato2Label = "ligero";
+        Localization.vibrato3Label = "retrasado";
+        Localization.vibrato4Label = "pesado";
+        Localization.vibrato5Label = "tambaleante";
+        Localization.vibratoNormalLabel = "normal";
+        Localization.vibratoShakyLabel = "tambaleante";
+        Localization.chord1Label = "simultáneo";
+        Localization.chord2Label = "rasgueo";
+        Localization.chord3Label = "arpegio";
+        Localization.chord4Label = "intervalo personalizado";
+        Localization.drumsetIndexLabel = "Índice: ";
+        Localization.chipWaveInstLabel = "onda de chip";
+        Localization.FMInstLabel = "FM";
+        Localization.noiseInstDrumLabel = "ruido básico";
+        Localization.spectrumInstDrumLabel = "espectro";
+        Localization.drumsetDrumLabel = "batería";
+        Localization.harmonicsInstLabel = "armónicos";
+        Localization.pwmInstLabel = "ancho de pulso";
+        Localization.pickedStringInstLabel = "cuerda pulsada";
+        Localization.customChipInstLabel = "chip personalizado";
+        Localization.supersawInstLabel = "supersierra";
+        Localization.wavetableInstLabel = "wavetable";
+        Localization.ADVFMInstLabel = "FM avanzado";
+        Localization.customInstrumentsLabel = "Tipos de Instrumentos";
+        Localization.midboxMiscPresetsLabel = "Presets Misc. de Midbox";
+        Localization.midboxDubstepPresetsLabel = "Presets de Dubstep de Midbox";
+        Localization.midboxNoisePresetsLabel = "Ruido Presets de Midbox";
+        Localization.midboxDrumPresetsLabel = "Presets de Tambór de Midbox";
+        Localization.midboxPianoPresetsLabel = "Piano Presets de Midbox";
+        Localization.midboxLeadPresetsLabel = "Presets Plomo de Midbox";
+        Localization.beepboxSupersawPresetsLabel = "Presets de Supersierra de Beepbox";
+        Localization.retroPresetsLabel = "Presets Retro";
+        Localization.keyboardPresetsLabel = "Presets de Teclado";
+        Localization.idiophonePresetsLabel = "Presets de Idiófonos";
+        Localization.guitarPresetsLabel = "Presets de Guitarra";
+        Localization.pickedBassPresetsLabel = "Presets de Bajo Pulsado";
+        Localization.pickedStringPresetsLabel = "Presets de Cadeno Pulsado";
+        Localization.distortionPresetsLabel = "Presets de Distorsión";
+        Localization.bellowsPresetsLabel = "Presets de Fuelle";
+        Localization.stringPresetsLabel = "Presets de Cadeno";
+        Localization.vocalPresetsLabel = "Presets de Vocales";
+        Localization.brassPresetsLabel = "Presets de Latón";
+        Localization.reedPresetsLabel = "Presets de Lengüeta";
+        Localization.flutePresetsLabel = "Presets de Flauta";
+        Localization.padPresetsLabel = "Presets de Pads";
+        Localization.drumPresetsLabel = "Presets de Tambór";
+        Localization.noveltyPresetsLabel = "Presets de Variedad";
+        Localization.languagePromptLabel = "Seleccionar Idioma (BETA)";
+        Localization.englishDefaultLanguageLabel = "English / Inglés";
+        Localization.themePromptLabel = "Seleccionar Tema";
+        Localization.theme1Label = "Beepbox Oscuro";
+        Localization.theme2Label = "Beepbox Luminoso";
+        Localization.theme3Label = "Beepbox Competición Oscuro";
+        Localization.theme4Label = "Jummbox Oscuro";
+        Localization.theme5Label = "Bosque";
+        Localization.theme6Label = "Cañón";
+        Localization.theme7Label = "Medianoche";
+        Localization.theme8Label = "Paseo por la Playa";
+        Localization.theme9Label = "Violeta Verde";
+        Localization.theme10Label = "Atardecer";
+        Localization.theme11Label = "Otoño";
+        Localization.theme12Label = "Fruta de Sombra";
+        Localization.theme13Label = "Tóxico";
+        Localization.theme14Label = "Corzo";
+        Localization.theme15Label = "Luz de la Luna";
+        Localization.theme16Label = "Portal";
+        Localization.theme17Label = "Fusión";
+        Localization.theme18Label = "Inverso";
+        Localization.theme19Label = "Nebulosa";
+        Localization.theme20Label = "Corzo Luminoso";
+        Localization.theme21Label = "Energizado";
+        Localization.theme22Label = "Napolitano";
+        Localization.theme23Label = "Poly";
+        Localization.theme24Label = "Midbox";
+        Localization.theme25Label = "Jummbox Oscuro Viejo";
+        Localization.theme26Label = "Mono (Poly Viejo)";
+        Localization.theme27Label = "Blutonium";
+        Localization.layoutPromptLabel = "Diseño";
+        Localization.layout1Label = "Pequeño";
+        Localization.layout2Label = "Largo";
+        Localization.layout3Label = "Alto";
+        Localization.layout4Label = "Ancho (JB)";
+        Localization.keybindSetupLabel = "Configuración de Asignación de Teclado...";
+        Localization.noteRecordingPromptLabel = "Configurar Grabación de Notas";
+        Localization.playSpaceLabel = "Reproducir (Espacio)";
+        Localization.pauseSpaceLabel = "Pausa (Espacio)";
+        Localization.recordCTRLSpaceLabel = "Grabar (CTRL + Espacio)";
+        Localization.stopRecordSpaceLabel = "Detener Grabación (Espacio)";
+        Localization.prevBarLBrackLabel = "Barra Anterior (Corchete Izquierdo)";
+        Localization.nextBarRBrackLabel = "Siguiente Barra (Corchete Derecho)";
+        Localization.mainVolumeLabel = "Volumen Principal";
+        Localization.simpleFilter1Label = "Frecuencia de Corte del Filtro de Paso Bajo";
+        Localization.simpleFilter2Label = "Resonancia de Pico del Filtro de Paso Bajo";
+        Localization.semitonesLabel = " semitono(s)";
+        Localization.centsLabel = " centavo(s)";
+        Localization.beatsLabel = " latido(s)";
+        Localization.modSettingsLabel = "Configuración del Modulador";
+        Localization.modOptions1Label = "ninguno";
+        Localization.modOptions2Label = "canción";
+        Localization.modOptions3Label = "tono ";
+        Localization.modOptions4Label = "ruido ";
+        Localization.modOptions5Label = "todo";
+        Localization.modOptions6Label = "activo";
+        Localization.modOptions7Label = "volumen de la canción";
+        Localization.modOptions8Label = "tempo";
+        Localization.modOptions9Label = "reverberación de canciones";
+        Localization.modOptions10Label = "saltar barra";
+        Localization.modOptions11Label = "desafinación del canción";
+        Localization.modOptions12Label = "volumen de notas";
+        Localization.modOptions13Label = "volumen de mezcla";
+        Localization.loadPresetLabel = "Cargar Preset";
+        Localization.waveform1Label = "senoidal";
+        Localization.waveform2Label = "triángulo";
+        Localization.waveform3Label = "sawtooth";
+        Localization.waveform4Label = "ancho de pulso";
+        Localization.waveform5Label = "rampa";
+        Localization.waveform6Label = "trapezoide";
+        Localization.waveform7Label = "tañido";
+        Localization.waveform8Label = "metal";
+        Localization.waveform9Label = "redondeado";
+        Localization.waveform10Label = "secante";
+        Localization.waveform11Label = "senoidal doble";
+        Localization.waveform12Label = "ruido blanco";
+        Localization.envelope1Label = "ninguno";
+        Localization.envelope2Label = "tamaño del nota";
+        Localization.envelope3Label = "puñetazo";
+        Localization.envelope4Label = "flare 0";
+        Localization.envelope5Label = "flare 1";
+        Localization.envelope6Label = "flare 2";
+        Localization.envelope7Label = "flare 3";
+        Localization.envelope8Label = "flare 4";
+        Localization.envelope9Label = "flare 5";
+        Localization.envelope10Label = "flare 6";
+        Localization.envelope11Label = "twang 0";
+        Localization.envelope12Label = "twang 1";
+        Localization.envelope13Label = "twang 2";
+        Localization.envelope14Label = "twang 3";
+        Localization.envelope15Label = "twang 4";
+        Localization.envelope16Label = "twang 5";
+        Localization.envelope17Label = "twang 6";
+        Localization.envelope18Label = "marejada 0";
+        Localization.envelope19Label = "marejada 1";
+        Localization.envelope20Label = "marejada 2";
+        Localization.envelope21Label = "marejada 3";
+        Localization.envelope22Label = "marejada 4";
+        Localization.envelope23Label = "marejada 5";
+        Localization.envelope24Label = "marejada 6";
+        Localization.envelope25Label = "marejada 7";
+        Localization.envelope26Label = "trémolo completo 0";
+        Localization.envelope27Label = "trémolo completo 1";
+        Localization.envelope28Label = "trémolo completo 2";
+        Localization.envelope29Label = "trémolo completo 3";
+        Localization.envelope30Label = "trémolo completo 4";
+        Localization.envelope31Label = "trémolo completo 5";
+        Localization.envelope32Label = "trémolo medio 0";
+        Localization.envelope33Label = "trémolo medio 1";
+        Localization.envelope34Label = "trémolo medio 2";
+        Localization.envelope35Label = "trémolo medio 3";
+        Localization.envelope36Label = "trémolo medio 4";
+        Localization.envelope37Label = "trémolo medio 5";
+        Localization.envelope38Label = "decaer 0";
+        Localization.envelope39Label = "decaer 1";
+        Localization.envelope40Label = "decaer 2";
+        Localization.envelope41Label = "decaer 3";
+        Localization.envelope42Label = "decaer 4";
+        Localization.envelope43Label = "decaer 5";
+        Localization.envelope44Label = "modbox trino";
+        Localization.envelope45Label = "modbox blip";
+        Localization.envelope46Label = "modbox clic";
+        Localization.envelope47Label = "modbox arco";
+        Localization.envelope48Label = "wibble 0";
+        Localization.envelope49Label = "wibble 1";
+        Localization.envelope50Label = "wibble 2";
+        Localization.envelope51Label = "wibble 3";
+        Localization.envelope52Label = "wibble 4";
+        Localization.envelope53Label = "lineal 0";
+        Localization.envelope54Label = "lineal 1";
+        Localization.envelope55Label = "lineal 2";
+        Localization.envelope56Label = "lineal 3";
+        Localization.envelope57Label = "lineal 4";
+        Localization.envelope58Label = "lineal 5";
+        Localization.envelope59Label = "subir 0";
+        Localization.envelope60Label = "subir 1";
+        Localization.envelope61Label = "subir 2";
+        Localization.envelope62Label = "subir 3";
+        Localization.envelope63Label = "subir 4";
+        Localization.envelope64Label = "subir 5";
+        Localization.hoverText1Label = "Voz ";
+        Localization.hoverText2Label = "Modulador ";
+        Localization.hoverText3Label = " Frecuencia";
+        Localization.hoverText4Label = " Volumen";
+        Localization.hoverText5Label = " Amplitud";
+        Localization.hoverText6Label = "Frecuencia";
+        Localization.hoverText7Label = "Volumen";
+        Localization.hoverText8Label = "Onda";
+        Localization.hoverText9Label = "Ancho de Pulso";
+        Localization.hoverText10Label = "Acercar";
+        Localization.hoverText11Label = "Alejar";
+        Localization.hoverText12Label = "Amplitud de Respuesta";
+        Localization.hoverText13Label = "Envoltura del Filtro";
+        Localization.dynamismLabel = "Dinamismo:";
+        Localization.spreadLabel = "Alcance:";
+        Localization.sawToPulseLabel = "Vió↔Pulso:";
+        Localization.exportPrompt1Label = "Exportar a .wav.";
+        Localization.exportPrompt2Label = "Exportar a .mp3.";
+        Localization.exportPrompt3Label = "Exportar a .mid.";
+        Localization.exportPrompt4Label = "Exportar a .json.";
+        Localization.exportPrompt5Label = "Exportar a .html.";
+        Localization.exportPrompt6Label = "Exportar";
+        Localization.exportPrompt7Label = "Opciones de Exportación";
+        Localization.exportPrompt8Label = "Nombre:";
+        Localization.exportPrompt9Label = "Duración:";
+        Localization.exportPrompt10Label = "Intro:";
+        Localization.exportPrompt11Label = "Cantidad de Bucle:";
+        Localization.exportPrompt12Label = "Outro:";
+        Localization.exportPrompt13Label = "Codificación...";
+        Localization.exportPromptLargeTextLabel = "La exportación puede ser lenta si hay muchos datos en la canción. Volver a cargar la página o hacer clic en la X la cancelará.";
+        Localization.songCorruptedLabel = "Se parece que los datos de la canción se han dañado. Intente recuperar la última versión funcional de la canción desde la opción \"Recuperar canción...\" en el menú \"Archivo/Compartir\" de Midbox, o deshaga los cambios que corrompieron la canción usando la boton de deshacer en tu navegador.";
+        Localization.songRecoveryPromptLabel = "Recuperación de Canciones";
+        Localization.songRecoveryPromptLargeText1Label = "Esta es una lista temporal de canciones que ha modificado recientemente. Asegúrate de tener copias de seguridad de las canciones que te interesan, o tal vez un lugar para almacenarlas. Si algo sale mal, consulta aquí para encontrar tu canción.";
+        Localization.songRecoveryPromptLargeText2Label = "(Si \"Mostrar Datos de Canciones en la URL\" está habilitado en sus preferencias, es posible que también pueda encontrar versiones de canciones en el historial de su navegador. Sin embargo, la recuperación de canciones no funcionará si estaba navegando en modo privado/incógnito.)";
+        Localization.songRecoveryPromptLargeText3Label = "No hay canciones por recuperar. Intenta hacer una canción!";
+        Localization.importPrompt1Label = "Importar";
+        Localization.importPromptLargeText1Label = "Las canciones de Midbox se puede exportan y se vuelven a importar como archivos .json. También puede usar otros medios para crear archivos .json para Midbox, siempre que sigan la misma estructura.";
+        Localization.importPromptLargeText2Label = "Midbox también puede (crudamente) importar archivos .mid. Hay muchas herramientas disponibles para crear archivos .mid. Es más probable que las canciones más cortas y sencillas funcionen bien.";
+        Localization.importPromptLargeText3Label = "Si está importando un .json desde otro mod de Beepbox, puede seleccionar de qué mod proviene el .json aquí para que la importación sea más precisa.";
+        Localization.moveNotesSidewaysPrompt1Label = "Notas de desbordamiento a través de las barras.";
+        Localization.moveNotesSidewaysPrompt2Label = "Envuelve las notas dentro de las barras.";
+        Localization.moveNotesSidewaysPrompt3Label = "Mover Notas a los Lados";
+        Localization.moveNotesSidewaysPrompt4Label = "Latidos para moverse:";
+        Localization.moveNotesSidewaysPrompt5Label = "(Negativo es la izquierda, Positivo es la derecha.)";
+        Localization.beatsPerBarPrompt1Label = "Latidos de empalme al final de barras.";
+        Localization.beatsPerBarPrompt2Label = "Estira notas para que quepan en las barras.";
+        Localization.beatsPerBarPrompt3Label = "Notas de desbordamiento a través de barras.";
+        Localization.beatsPerBarPrompt4Label = "Latidos por Barra";
+        Localization.beatsPerBarPrompt5Label = "Latidos por barra:";
+        Localization.beatsPerBarPrompt6Label = "(Se recomiendan múltiplos de 3 o 4.)";
+        Localization.songDurationPrompt1Label = "Aplica cambio al final de la canción.";
+        Localization.songDurationPrompt2Label = "Aplica cambio al principio de la canción.";
+        Localization.songDurationPrompt3Label = "Duración del Canción";
+        Localization.songDurationPrompt4Label = "Barras por canción:";
+        Localization.songDurationPrompt5Label = "(Consejo: Puede presionar la tecla \"enter\" en su teclado para agregar rápidamente una barra.)";
+        Localization.channelSettingsPrompt1Label = "Configuración del Canal[es]";
+        Localization.channelSettingsPrompt2Label = "Canales de pitch:";
+        Localization.channelSettingsPrompt3Label = "Canales de batería:";
+        Localization.channelSettingsPrompt4Label = "Canales moduladores:";
+        Localization.channelSettingsPrompt5Label = "Patrones disponibles por canal:";
+        Localization.channelSettingsPrompt6Label = "Instrumentos simultáneos";
+        Localization.channelSettingsPrompt7Label = "por canal:";
+        Localization.channelSettingsPrompt8Label = "Diferentes instrumentos";
+        Localization.channelSettingsPrompt9Label = "por patrón:";
+        Localization.limiterSettingsPrompt1Label = "En";
+        Localization.limiterSettingsPrompt2Label = "Fuera";
+        Localization.limiterSettingsPrompt3Label = "Volumen";
+        Localization.limiterSettingsPrompt4Label = "Aumento";
+        Localization.limiterSettingsPrompt5Label = "Decaimiento de Límite";
+        Localization.limiterSettingsPrompt6Label = "Aumento del Límite";
+        Localization.limiterSettingsPrompt7Label = "Umbral del Compresor";
+        Localization.limiterSettingsPrompt8Label = "Umbral del Limitador";
+        Localization.limiterSettingsPrompt9Label = "Proporción del Compresor";
+        Localization.limiterSettingsPrompt10Label = "Proporción del Limitador";
+        Localization.limiterSettingsPrompt11Label = "Ganancia Maestro";
+        Localization.limiterSettingsPrompt12Label = "Opciones de Limitador";
+        Localization.limiterSettingsPrompt13Label = "Impulso";
+        Localization.limiterSettingsPrompt14Label = "Atajo";
+        Localization.limiterSettingsPrompt15Label = "Umbral:";
+        Localization.limiterSettingsPrompt16Label = "Proporción:";
+        Localization.limiterSettingsPrompt17Label = "Decaimiento de Límite:";
+        Localization.limiterSettingsPrompt18Label = "Aumento del Límite:";
+        Localization.limiterSettingsPrompt19Label = "Ganancia Maestro:";
+        Localization.noteRecordingPrompt1Label = "Atajos sencillos | Utilice BLOQ MAYÚS para tocar notas.";
+        Localization.noteRecordingPrompt2Label = "Notas sencillas | Presione ";
+        Localization.noteRecordingPrompt3Label = " para accesos directos.";
+        Localization.noteRecordingPrompt4Label = "Wicki-Hayden";
+        Localization.noteRecordingPrompt5Label = "Escala seleccionada de canción";
+        Localization.noteRecordingPrompt6Label = "Piano a partir de C mayor";
+        Localization.noteRecordingPrompt7Label = "Piano a partir de A menor";
+        Localization.noteRecordingPrompt8Label = "Transposición de piano de C mayor a tono de canción";
+        Localization.noteRecordingPrompt9Label = "Transposición de piano de A menor a tono de canción";
+        Localization.noteRecordingPrompt10Label = "Configuración de Grabación de Notas";
+        Localization.noteRecordingPrompt11Label = "Añadir ● botón de grabación junto al botón de ▶ reproducción:";
+        Localization.noteRecordingPrompt12Label = "Encaje notas grabadas al ritmo del canción:";
+        Localization.noteRecordingPrompt13Label = "Ignora las notas que no están en la escala del canción:";
+        Localization.noteRecordingPrompt14Label = "Disposición del teclado:";
+        Localization.noteRecordingPrompt15Label = "Escuche metrónomo mientras grabando:";
+        Localization.noteRecordingPrompt16Label = "Contar 1 compás de metrónomo antes de grabar:";
+        Localization.noteRecordingPrompt17Label = "Habilitar interpretación MIDI:";
+        Localization.noteRecordingPrompt18Label = "Desactivado";
+        Localization.noteRecordingPrompt19Label = "Antes";
+        Localization.noteRecordingPrompt20Label = "Después";
+        Localization.noteRecordingPrompt21Label = "Desplazamiento de Graves:";
+        Localization.noteRecordingPromptLargeText1Part1Label = "Midbox puede grabar notas a medida que las realizar. Puede comenzar a grabar presionando Ctrl + Espacio (o ";
+        Localization.noteRecordingPromptLargeText1Part2Label = "P).";
+        Localization.noteRecordingPromptLargeText2Label = "Mientras grabas, puedes realizar notas en tu teclado!";
+        Localization.noteRecordingPromptLargeText3Label = "Cuando no estas grabando, puede usar el teclado de la computadora para atajos (como C y V para copiar y pegar) o para realizar notas, Dependiendo de este modo:";
+        Localization.noteRecordingPromptLargeText4Label = "Tocando música requiere práctica! Intenta ralentizar el tempo y usar el metrónomo para ayudarte a mantener el ritmo.";
+        Localization.noteRecordingPromptLargeText5Part1Label = "Si tienes un ";
+        Localization.noteRecordingPromptLargeText5Part2Label = "navegador compatible";
+        Localization.noteRecordingPromptLargeText5Part3Label = " en un dispositivo conectado a un teclado MIDI, puedes usarlo para realizar notas en Midbox! También puedes comprar otras cosas, como un Dubler para tararear notas en un micrófono mientras usas auriculares.";
+        Localization.noteRecordingPromptLargeText6Label = "El rango de tonos disponibles para tocar a través del teclado de su computadora se ve afectado por la barra de desplazamiento de octava del canal seleccionado actualmente.";
+        Localization.noteRecordingPromptLargeText7Label = "Si establece el siguiente cambio de canal en 'antes' o 'después', las notas debajo de la octava central en la vista serán notas 'graves' y se colocarán en el canal antes o después del que se muestra. Con esto, puedes tocar el bajo y el plomo al mismo tiempo.";
+        Localization.noteRecordingPromptLargeText8Label = "Cuando tu que habilite la configuración, la distribución del teclado anterior se oscurecerá para denotar las nuevas notas graves. Las notas se grabarán con temporización independiente y esto también funciona con dispositivos MIDI. Tenga en cuenta que el desplazamiento de octava de ambos canales utilizados afectará a la altura y la gravedad de los graves/principales en relación entre sí.";
+        Localization.noteRecordingPromptLargeText9Label = "Las notas grabadas a menudo se superponen de tal manera que una nota termina después de que la siguiente nota ya haya comenzado. En Midbox, estas notas se dividen en varias notas que pueden sonar diferentes cuando se reproducen que cuando se estaban grabando. Para arreglar el sonido, puedes limpiar manualmente las notas en el editor de patrones, o puedes intentar activar el efecto \"tipo de transición\" en el instrumento y configurarlo en \"continuar\".";
+        Localization.sustainTypePrompt1Label = "(A) Acústic";
+        Localization.sustainTypePrompt2Label = "(B) Brillante";
+        Localization.sustainTypePrompt3Label = "Tipo Sustain de Cuerda Pulsada";
+        Localization.sustainTypePromptLargeText1Label = "Este ajuste controla la rapidez con la que decae la vibración de la cuerda punteada.";
+        Localization.sustainTypePromptLargeText2Label = "A diferencia de la mayoría de las características del sintetizador de instrumentos de Midbox, una cuerda punteada no puede cambiar de frecuencia repentinamente mientras mantiene su decaimiento. Si el tono de un tono cambia repentinamente (por ejemplo, si el tipo de acorde se establece en \"arpegio\" o el tipo de transición se establece en \"continuar\"), entonces la cuerda se volverá a tocar y comenzará a decaer desde el principio nuevamente, incluso si las envolventes no se reinician de otra manera.";
+        Localization.sustainTypePromptLargeText3Label = "Midbox viene con dos diseños de sustain ligeramente diferentes. Puede seleccionar uno aquí y presionar \"Confirmar\" para confirmarlo.";
+        Localization.songPlayer1Label = "✎ Editar";
+        Localization.songPlayer2Label = "⎘ Copiar URL";
+        Localization.songPlayer3Label = "⤳ Compartir";
+        Localization.songPlayer4Label = "⇱ Fullscreen";
+        Localization.songPlayer5Label = "Bucle";
+        Localization.songPlayer6Label = "Volumen";
+        Localization.songPlayer7Label = "Zoom";
+    }
+
+    const { button: button$2, div: div$2, h2: h2$2, select: select$1, option: option$1 } = HTML;
+    function selectWeightedRandom(entries) {
+        let total = 0;
+        for (const entry of entries) {
+            total += entry.weight;
+        }
+        let random = Math.random() * total;
+        for (const entry of entries) {
+            random -= entry.weight;
+            if (random <= 0.0)
+                return entry.item;
+        }
+        return entries[(Math.random() * entries.length) | 0].item;
+    }
+    function getCurveModeStepMessage(step) {
+        switch (step) {
+            case 0: return "Placing line...";
+            case 1: return "Curving...";
+        }
+    }
+    function createFloatingSelectionFromBounds(wave, bounds) {
+        const selectionStart = bounds.start;
+        const selectionEnd = bounds.end;
+        if (selectionEnd < selectionStart) {
+            throw new Error("Selection end comes before start");
+        }
+        else if (selectionEnd == selectionStart) {
+            throw new Error("Selection is empty");
+        }
+        const selectionLength = selectionEnd - selectionStart;
+        const data = new Float32Array(selectionLength);
+        const destinationStart = selectionStart;
+        const destinationEnd = selectionEnd;
+        const amplitudeOffset = 0;
+        for (let i = selectionStart; i < selectionEnd; i++) {
+            data[i - selectionStart] = wave[i];
+        }
+        return { data, destinationStart, destinationEnd, amplitudeOffset };
+    }
+    function stampFloatingSelectionOntoChipWave(wave, floatingSelectionData, destinationStart, destinationEnd, amplitudeOffset) {
+        const start = destinationStart;
+        const end = destinationEnd;
+        if (end < start) {
+            throw new Error("Destination end comes before start");
+        }
+        else if (end == start) {
+            return;
+        }
+        for (let i = start; i < end; i++) {
+            if (i < 0 || i >= wave.length) {
+                continue;
+            }
+            const dataIndex = Math.min(floatingSelectionData.length - 1, Math.max(0, Math.floor(floatingSelectionData.length * ((i - start) / (end - start)))));
+            const dataValue = floatingSelectionData[dataIndex] + amplitudeOffset;
+            wave[i] = Math.min(24, Math.max(-24, dataValue));
+        }
+    }
+    function flipChipWaveHorizontally(wave, startIndex, onePastTheEndIndex) {
+        const length = onePastTheEndIndex - startIndex;
+        const halfLength = Math.floor(length / 2);
+        for (let i = 0; i < halfLength; i++) {
+            const indexA = startIndex + i;
+            const indexB = startIndex + ((length - 1) - i);
+            const a = wave[indexA];
+            const b = wave[indexB];
+            wave[indexA] = b;
+            wave[indexB] = a;
+        }
+    }
+    function flipChipWaveVertically(wave, aroundZero, startIndex, onePastTheEndIndex) {
+        let middle = 0;
+        if (!aroundZero) {
+            let min = Infinity;
+            let max = -Infinity;
+            for (let i = startIndex; i < onePastTheEndIndex; i++) {
+                const val = wave[i];
+                min = Math.min(min, val);
+                max = Math.max(max, val);
+            }
+            middle = (min + max) / 2;
+        }
+        for (let i = startIndex; i < onePastTheEndIndex; i++) {
+            wave[i] = Math.min(24, Math.max(-24, Math.floor(-wave[i] + middle * 2)));
+        }
+    }
+    function buildHeaderedOptions(header, menu, items) {
+        menu.appendChild(option$1({ selected: true, disabled: true, value: header }, header));
+        for (const item of items) {
+            menu.appendChild(option$1({ value: item }, item));
+        }
+        return menu;
+    }
     class CustomChipPromptCanvas {
-        constructor(doc) {
+        constructor(doc, _curveModeMessage, _removeSelectionButton) {
+            this._curveModeMessage = _curveModeMessage;
+            this._removeSelectionButton = _removeSelectionButton;
+            this.drawMode = 0;
+            this.curveModeStep = 0;
             this._mouseX = 0;
             this._mouseY = 0;
+            this._lineX0 = 0;
+            this._lineY0 = 0;
+            this._lineX1 = 0;
+            this._lineY1 = 0;
+            this._curveX0 = 0;
+            this._curveY0 = 0;
+            this._selectionEdgeMargin = 4;
+            this.selectionModeStep = 0;
+            this._selectionBounds = null;
+            this._lockSelectionHorizontally = false;
+            this._tentativeSelectionBounds = null;
+            this._tentativeDestinationStart = null;
+            this._tentativeDestinationEnd = null;
+            this._tentativeAmplitudeOffset = null;
+            this._floatingSelection = null;
+            this._floatingSelectionDragStartX = null;
+            this._floatingSelectionDragStartY = null;
+            this.selectionDragEvent = 0;
+            this.temporaryArray = new Float32Array(64);
             this._lastIndex = 0;
             this._lastAmp = 0;
             this._mouseDown = false;
@@ -20750,12 +22637,14 @@ li.select2-results__option[role=group] > strong:hover {
             this._ticks = SVG.svg({ "pointer-events": "none" });
             this._subticks = SVG.svg({ "pointer-events": "none" });
             this._blocks = SVG.svg({ "pointer-events": "none" });
-            this._svg = SVG.svg({ style: `background-color: ${ColorConfig.editorBackground}; touch-action: none; overflow: visible;`, width: "100%", height: "100%", viewBox: "0 0 " + this._editorWidth + " " + this._editorHeight, preserveAspectRatio: "none" }, this._fill, this._ticks, this._subticks, this._blocks);
+            this._selectionBox = SVG.rect({ class: "dashed-line dash-move", fill: ColorConfig.boxSelectionFill, stroke: ColorConfig.hoverPreview, "stroke-width": 2, "stroke-dasharray": "5, 3", "fill-opacity": "0.4", "pointer-events": "none", visibility: "hidden" });
+            this._selectionBoxOverlay = SVG.path({ fill: "none", stroke: ColorConfig.hoverPreview, "stroke-width": "2", "pointer-events": "none" });
+            this._svg = SVG.svg({ style: `background-color: ${ColorConfig.editorBackground}; touch-action: none; overflow: visible;`, width: "100%", height: "100%", viewBox: "0 0 " + this._editorWidth + " " + this._editorHeight, preserveAspectRatio: "none" }, this._fill, this._ticks, this._subticks, this._blocks, this._selectionBox, this._selectionBoxOverlay);
             this.container = HTML.div({ class: "", style: "height: 294px; width: 768px; padding-bottom: 1.5em;" }, this._svg);
             this._storeChange = () => {
-                var sameCheck = true;
+                let sameCheck = true;
                 if (this._changeQueue.length > 0) {
-                    for (var i = 0; i < 64; i++) {
+                    for (let i = 0; i < 64; i++) {
                         if (this._changeQueue[this._undoHistoryState][i] != this.chipData[i]) {
                             sameCheck = false;
                             i = 64;
@@ -20772,6 +22661,7 @@ li.select2-results__option[role=group] > strong:hover {
                 }
             };
             this.undo = () => {
+                this.clearSelection();
                 if (this._undoHistoryState < this._changeQueue.length - 1) {
                     this._undoHistoryState++;
                     this.chipData = this._changeQueue[this._undoHistoryState].slice();
@@ -20780,6 +22670,7 @@ li.select2-results__option[role=group] > strong:hover {
                 }
             };
             this.redo = () => {
+                this.clearSelection();
                 if (this._undoHistoryState > 0) {
                     this._undoHistoryState--;
                     this.chipData = this._changeQueue[this._undoHistoryState].slice();
@@ -20797,6 +22688,109 @@ li.select2-results__option[role=group] > strong:hover {
                     event.stopPropagation();
                 }
             };
+            this._randomizeCustomChip = () => {
+                let randomGeneratedArray = new Float32Array(64);
+                const algorithmFunction = selectWeightedRandom([
+                    { item: randomRoundedWave, weight: 1 },
+                    { item: randomPulses, weight: 1 },
+                    { item: randomChip, weight: 1 },
+                    { item: biasedFullyRandom, weight: 1 },
+                ]);
+                algorithmFunction(randomGeneratedArray);
+                this.chipData = randomGeneratedArray;
+                this._storeChange();
+                new ChangeCustomWave(this._doc, randomGeneratedArray);
+                this.curveModeStep = 0;
+            };
+            this._randomizeSelection = () => {
+                if (this.selectionModeStep == 2) {
+                    const bounds = this._selectionBounds;
+                    if (this._selectionBounds == null)
+                        return;
+                    if (this._floatingSelection == null) {
+                        for (let i = 0; i < 64; i++)
+                            this.temporaryArray[i] = this.chipData[i];
+                        this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                    }
+                    randomizeWave(this._floatingSelection.data, 0, this._floatingSelection.data.length);
+                    for (let i = 0; i < 64; i++)
+                        this.chipData[i] = this.temporaryArray[i];
+                    stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                    this._storeChange();
+                    new ChangeCustomWave(this._doc, this.chipData);
+                }
+                else {
+                    throw new Error("Attempted to randomize waveform during an intermediate selection tool state.");
+                }
+            };
+            this.flipHorizontally = () => {
+                if (this.drawMode == 3) {
+                    if (this.selectionModeStep == 2) {
+                        const bounds = this._selectionBounds;
+                        if (this._floatingSelection == null) {
+                            for (let i = 0; i < 64; i++)
+                                this.temporaryArray[i] = this.chipData[i];
+                            this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                        }
+                        flipChipWaveHorizontally(this._floatingSelection.data, 0, this._floatingSelection.data.length);
+                        for (let i = 0; i < 64; i++)
+                            this.chipData[i] = this.temporaryArray[i];
+                        stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                        new ChangeCustomWave(this._doc, this.chipData);
+                    }
+                    else if (this.selectionModeStep == 0) {
+                        this.clearSelection();
+                        flipChipWaveHorizontally(this.chipData, 0, this.chipData.length);
+                        new ChangeCustomWave(this._doc, this.chipData);
+                        this._storeChange();
+                        this.render();
+                    }
+                    else {
+                        throw new Error("Attempted to flip during an intermediate selection tool state.");
+                    }
+                }
+                else {
+                    this.clearSelection();
+                    flipChipWaveHorizontally(this.chipData, 0, this.chipData.length);
+                    new ChangeCustomWave(this._doc, this.chipData);
+                    this._storeChange();
+                    this.render();
+                }
+            };
+            this.flipVertically = () => {
+                if (this.drawMode == 3) {
+                    if (this.selectionModeStep == 2) {
+                        const bounds = this._selectionBounds;
+                        if (this._floatingSelection == null) {
+                            for (let i = 0; i < 64; i++)
+                                this.temporaryArray[i] = this.chipData[i];
+                            this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                        }
+                        flipChipWaveVertically(this._floatingSelection.data, false, 0, this._floatingSelection.data.length);
+                        for (let i = 0; i < 64; i++)
+                            this.chipData[i] = this.temporaryArray[i];
+                        stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                        new ChangeCustomWave(this._doc, this.chipData);
+                    }
+                    else if (this.selectionModeStep == 0) {
+                        this.clearSelection();
+                        flipChipWaveVertically(this.chipData, true, 0, this.chipData.length);
+                        new ChangeCustomWave(this._doc, this.chipData);
+                        this._storeChange();
+                        this.render();
+                    }
+                    else {
+                        throw new Error("Attempted to flip during an intermediate selection tool state.");
+                    }
+                }
+                else {
+                    this.clearSelection();
+                    flipChipWaveVertically(this.chipData, true, 0, this.chipData.length);
+                    new ChangeCustomWave(this._doc, this.chipData);
+                    this._storeChange();
+                    this.render();
+                }
+            };
             this._whenMousePressed = (event) => {
                 event.preventDefault();
                 this._mouseDown = true;
@@ -20808,6 +22802,198 @@ li.select2-results__option[role=group] > strong:hover {
                 if (isNaN(this._mouseY))
                     this._mouseY = 0;
                 this._lastIndex = -1;
+                if (this.drawMode == 1) {
+                    this._lineX0 = this._mouseX;
+                    this._lineY0 = this._mouseY;
+                    this._lineX1 = this._mouseX;
+                    this._lineY1 = this._mouseY;
+                    for (let i = 0; i < 64; i++)
+                        this.temporaryArray[i] = this.chipData[i];
+                }
+                else if (this.drawMode == 2) {
+                    switch (this.curveModeStep) {
+                        case 0:
+                            {
+                                this._lineX0 = this._mouseX;
+                                this._lineY0 = this._mouseY;
+                                this._lineX1 = this._mouseX;
+                                this._lineY1 = this._mouseY;
+                                this._curveX0 = this._lineX0 + (this._lineX1 - this._lineX0) * 0.5;
+                                this._curveY0 = this._lineY0 + (this._lineY1 - this._lineY0) * 0.5;
+                                for (let i = 0; i < 64; i++)
+                                    this.temporaryArray[i] = this.chipData[i];
+                            }
+                            break;
+                        case 1:
+                            {
+                                this._curveX0 = this._mouseX;
+                                this._curveY0 = this._mouseY;
+                            }
+                            break;
+                    }
+                }
+                else if (this.drawMode == 3) {
+                    switch (this.selectionModeStep) {
+                        case 0:
+                            {
+                                this.selectionModeStep = 1;
+                                const newSelectionStart = Math.min(63, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                const newSelectionEnd = newSelectionStart + 1;
+                                this._selectionBounds = {
+                                    start: newSelectionStart,
+                                    end: newSelectionEnd,
+                                };
+                                this._tentativeSelectionBounds = {
+                                    start: newSelectionStart,
+                                    end: newSelectionEnd,
+                                };
+                            }
+                            break;
+                        case 1:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 2:
+                            {
+                                const bounds = this._selectionBounds;
+                                const selectionBoxWidth = (bounds.end - bounds.start) / 64 * this._editorWidth;
+                                const selectionBoxX0 = bounds.start / 64 * this._editorWidth;
+                                const selectionBoxX1 = selectionBoxX0 + selectionBoxWidth;
+                                const selectionBoxStartX0 = selectionBoxX0 - this._selectionEdgeMargin;
+                                const selectionBoxStartX1 = selectionBoxX0 + this._selectionEdgeMargin;
+                                const selectionBoxEndX0 = selectionBoxX1 - this._selectionEdgeMargin;
+                                const selectionBoxEndX1 = selectionBoxX1 + this._selectionEdgeMargin;
+                                const mouseIsInsideSelection = (this._mouseX >= selectionBoxX0
+                                    && this._mouseX <= selectionBoxX1
+                                    && this._mouseY >= 0
+                                    && this._mouseY <= this._editorHeight);
+                                const mouseIsAtStartOfSelection = (this._mouseX >= selectionBoxStartX0
+                                    && this._mouseX <= selectionBoxStartX1
+                                    && this._mouseY >= 0
+                                    && this._mouseY <= this._editorHeight);
+                                const mouseIsAtEndOfSelection = (this._mouseX >= selectionBoxEndX0
+                                    && this._mouseX <= selectionBoxEndX1
+                                    && this._mouseY >= 0
+                                    && this._mouseY <= this._editorHeight);
+                                if (mouseIsAtStartOfSelection) {
+                                    if (this.selectionDragEvent == 1) {
+                                        if (this._floatingSelection == null) {
+                                            for (let i = 0; i < 64; i++)
+                                                this.temporaryArray[i] = this.chipData[i];
+                                            this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                                        }
+                                        this.selectionModeStep = 6;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._floatingSelectionDragStartX = this._mouseX;
+                                        this._floatingSelectionDragStartY = this._mouseY;
+                                        this._tentativeSelectionBounds = {
+                                            start: Math.min(64, Math.max(0, this._floatingSelection.destinationStart)),
+                                            end: Math.min(64, Math.max(0, this._floatingSelection.destinationEnd)),
+                                        };
+                                        this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                        this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    }
+                                    else {
+                                        this.commitFloatingSelection();
+                                        this.selectionModeStep = 3;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._tentativeSelectionBounds = {
+                                            start: this._selectionBounds.start,
+                                            end: this._selectionBounds.end,
+                                        };
+                                    }
+                                }
+                                else if (mouseIsAtEndOfSelection) {
+                                    if (this.selectionDragEvent == 1) {
+                                        if (this._floatingSelection == null) {
+                                            for (let i = 0; i < 64; i++)
+                                                this.temporaryArray[i] = this.chipData[i];
+                                            this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                                        }
+                                        this.selectionModeStep = 7;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._tentativeSelectionBounds = {
+                                            start: Math.min(64, Math.max(0, this._floatingSelection.destinationStart)),
+                                            end: Math.min(64, Math.max(0, this._floatingSelection.destinationEnd)),
+                                        };
+                                        this._floatingSelectionDragStartX = this._mouseX;
+                                        this._floatingSelectionDragStartY = this._mouseY;
+                                        this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                        this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    }
+                                    else {
+                                        this.commitFloatingSelection();
+                                        this.selectionModeStep = 4;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._tentativeSelectionBounds = {
+                                            start: this._selectionBounds.start,
+                                            end: this._selectionBounds.end,
+                                        };
+                                    }
+                                }
+                                else if (mouseIsInsideSelection) {
+                                    this.selectionModeStep = 5;
+                                    this._removeSelectionButton.style.display = "";
+                                    if (this._floatingSelection == null) {
+                                        for (let i = 0; i < 64; i++)
+                                            this.temporaryArray[i] = this.chipData[i];
+                                        this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                                    }
+                                    this._floatingSelectionDragStartX = this._mouseX;
+                                    this._floatingSelectionDragStartY = this._mouseY;
+                                    this._tentativeSelectionBounds = {
+                                        start: Math.min(64, Math.max(0, this._floatingSelection.destinationStart)),
+                                        end: Math.min(64, Math.max(0, this._floatingSelection.destinationEnd)),
+                                    };
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    this._tentativeAmplitudeOffset = this._floatingSelection.amplitudeOffset;
+                                    if (event.shiftKey) {
+                                        this._lockSelectionHorizontally = true;
+                                    }
+                                    else {
+                                        this._lockSelectionHorizontally = false;
+                                    }
+                                }
+                                else {
+                                    this.commitFloatingSelection();
+                                    this.selectionModeStep = 1;
+                                    const newSelectionStart = Math.min(63, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    const newSelectionEnd = newSelectionStart;
+                                    this._selectionBounds = {
+                                        start: newSelectionStart,
+                                        end: newSelectionEnd,
+                                    };
+                                    this._tentativeSelectionBounds = {
+                                        start: newSelectionStart,
+                                        end: newSelectionEnd,
+                                    };
+                                }
+                            }
+                            break;
+                        case 3:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 4:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 5:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 6:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 7:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                    }
+                    this._renderSelection();
+                }
                 this._whenCursorMoved();
             };
             this._whenTouchPressed = (event) => {
@@ -20821,6 +23007,39 @@ li.select2-results__option[role=group] > strong:hover {
                 if (isNaN(this._mouseY))
                     this._mouseY = 0;
                 this._lastIndex = -1;
+                if (this.drawMode == 1) {
+                    this._lineX0 = this._mouseX;
+                    this._lineY0 = this._mouseY;
+                    this._lineX1 = this._mouseX;
+                    this._lineY1 = this._mouseY;
+                    for (let i = 0; i < 64; i++)
+                        this.temporaryArray[i] = this.chipData[i];
+                }
+                else if (this.drawMode == 2) {
+                    switch (this.curveModeStep) {
+                        case 0:
+                            {
+                                this._lineX0 = this._mouseX;
+                                this._lineY0 = this._mouseY;
+                                this._lineX1 = this._mouseX;
+                                this._lineY1 = this._mouseY;
+                                this._curveX0 = this._lineX0 + (this._lineX1 - this._lineX0) * 0.5;
+                                this._curveY0 = this._lineY0 + (this._lineY1 - this._lineY0) * 0.5;
+                                for (let i = 0; i < 64; i++)
+                                    this.temporaryArray[i] = this.chipData[i];
+                            }
+                            break;
+                        case 1:
+                            {
+                                this._curveX0 = this._mouseX;
+                                this._curveY0 = this._mouseY;
+                            }
+                            break;
+                    }
+                }
+                else if (this.drawMode == 3) {
+                    this._renderSelection();
+                }
                 this._whenCursorMoved();
             };
             this._whenMouseMoved = (event) => {
@@ -20833,6 +23052,158 @@ li.select2-results__option[role=group] > strong:hover {
                     this._mouseX = 0;
                 if (isNaN(this._mouseY))
                     this._mouseY = 0;
+                if (this.drawMode == 1 && this._mouseDown) {
+                    this._lineX1 = this._mouseX;
+                    this._lineY1 = this._mouseY;
+                }
+                else if (this.drawMode == 2) {
+                    switch (this.curveModeStep) {
+                        case 0:
+                            {
+                                this._lineX1 = this._mouseX;
+                                this._lineY1 = this._mouseY;
+                                this._curveX0 = this._lineX0 + (this._lineX1 - this._lineX0) * 0.5;
+                                this._curveY0 = this._lineY0 + (this._lineY1 - this._lineY0) * 0.5;
+                            }
+                            break;
+                        case 1:
+                            {
+                                this._curveX0 = this._mouseX;
+                                this._curveY0 = this._mouseY;
+                            }
+                            break;
+                    }
+                }
+                else if (this.drawMode == 3) {
+                    switch (this.selectionModeStep) {
+                        case 0:
+                            break;
+                        case 1:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionEnd = Math.min(64, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    if (newSelectionEnd > this._selectionBounds.start) {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = newSelectionEnd;
+                                    }
+                                    else if (newSelectionEnd < this._selectionBounds.start) {
+                                        this._tentativeSelectionBounds.start = newSelectionEnd;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.start + 1;
+                                    }
+                                    else {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.end;
+                                    }
+                                }
+                            }
+                            break;
+                        case 2:
+                            break;
+                        case 3:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionStart = Math.min(64, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    if (newSelectionStart < this._selectionBounds.end) {
+                                        this._tentativeSelectionBounds.start = newSelectionStart;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.end;
+                                    }
+                                    else {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.start;
+                                    }
+                                }
+                            }
+                            break;
+                        case 4:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionEnd = Math.min(64, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    if (newSelectionEnd > this._selectionBounds.start) {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = newSelectionEnd;
+                                    }
+                                    else {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.start;
+                                    }
+                                }
+                            }
+                            break;
+                        case 5:
+                            {
+                                if (this._mouseDown) {
+                                    const chipMouseX = Math.floor(this._mouseX * 64 / this._editorWidth);
+                                    const chipMouseY = Math.floor(this._mouseY * 49 / this._editorHeight);
+                                    const chipDragStartX = Math.floor(this._floatingSelectionDragStartX * 64 / this._editorWidth);
+                                    const chipDragStartY = Math.floor(this._floatingSelectionDragStartY * 49 / this._editorHeight);
+                                    const displacementX = chipMouseX - chipDragStartX;
+                                    let displacementY = chipMouseY - chipDragStartY;
+                                    if (this._lockSelectionHorizontally) {
+                                        displacementY = 0;
+                                    }
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart + displacementX;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd + displacementX;
+                                    this._tentativeSelectionBounds.start = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    this._tentativeSelectionBounds.end = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    this._tentativeAmplitudeOffset = this._floatingSelection.amplitudeOffset + displacementY;
+                                    for (let i = 0; i < 64; i++)
+                                        this.chipData[i] = this.temporaryArray[i];
+                                    stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._tentativeDestinationStart, this._tentativeDestinationEnd, this._tentativeAmplitudeOffset);
+                                    new ChangeCustomWave(this._doc, this.chipData);
+                                }
+                            }
+                            break;
+                        case 6:
+                            {
+                                if (this._mouseDown) {
+                                    const chipMouseX = Math.floor(this._mouseX * 64 / this._editorWidth);
+                                    const chipDragStartX = Math.floor(this._floatingSelectionDragStartX * 64 / this._editorWidth);
+                                    const displacementX = chipMouseX - chipDragStartX;
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart + displacementX;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    this._tentativeSelectionBounds.start = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    this._tentativeSelectionBounds.end = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    if (this._tentativeSelectionBounds.start < this._tentativeSelectionBounds.end) {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._tentativeDestinationStart, this._tentativeDestinationEnd, this._floatingSelection.amplitudeOffset);
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                    else {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                }
+                            }
+                            break;
+                        case 7:
+                            {
+                                if (this._mouseDown) {
+                                    const chipMouseX = Math.floor(this._mouseX * 64 / this._editorWidth);
+                                    const chipDragStartX = Math.floor(this._floatingSelectionDragStartX * 64 / this._editorWidth);
+                                    const displacementX = chipMouseX - chipDragStartX;
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd + displacementX;
+                                    this._tentativeSelectionBounds.start = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    this._tentativeSelectionBounds.end = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    if (this._tentativeSelectionBounds.start < this._tentativeSelectionBounds.end) {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._tentativeDestinationStart, this._tentativeDestinationEnd, this._floatingSelection.amplitudeOffset);
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                    else {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                    this._renderSelection();
+                }
                 this._whenCursorMoved();
             };
             this._whenTouchMoved = (event) => {
@@ -20848,9 +23219,248 @@ li.select2-results__option[role=group] > strong:hover {
                     this._mouseX = 0;
                 if (isNaN(this._mouseY))
                     this._mouseY = 0;
+                if (this.drawMode == 1 && this._mouseDown) {
+                    this._lineX1 = this._mouseX;
+                    this._lineY1 = this._mouseY;
+                }
+                else if (this.drawMode == 2) {
+                    switch (this.curveModeStep) {
+                        case 0:
+                            {
+                                this._lineX1 = this._mouseX;
+                                this._lineY1 = this._mouseY;
+                                this._curveX0 = this._lineX0 + (this._lineX1 - this._lineX0) * 0.5;
+                                this._curveY0 = this._lineY0 + (this._lineY1 - this._lineY0) * 0.5;
+                            }
+                            break;
+                        case 1:
+                            {
+                                this._curveX0 = this._mouseX;
+                                this._curveY0 = this._mouseY;
+                            }
+                            break;
+                    }
+                }
+                else if (this.drawMode == 3) {
+                    this._renderSelection();
+                }
                 this._whenCursorMoved();
             };
             this._whenCursorReleased = (event) => {
+                if (this.drawMode == 2 && this._mouseDown) {
+                    switch (this.curveModeStep) {
+                        case 0:
+                            {
+                                this._mouseDown = false;
+                                this.curveModeStep = 1;
+                                this._curveModeMessage.textContent = getCurveModeStepMessage(this.curveModeStep);
+                                return;
+                            }
+                        case 1:
+                            {
+                                this.curveModeStep = 0;
+                                this._curveModeMessage.textContent = getCurveModeStepMessage(this.curveModeStep);
+                            }
+                            break;
+                    }
+                }
+                else if (this.drawMode == 3) {
+                    switch (this.selectionModeStep) {
+                        case 0:
+                            {
+                                if (this._mouseDown) {
+                                    throw new Error("This should be unreachable!");
+                                }
+                            }
+                            break;
+                        case 1:
+                            {
+                                if (this._mouseDown) {
+                                    const bounds = this._tentativeSelectionBounds;
+                                    if (bounds != null && bounds.start < bounds.end) {
+                                        this.selectionModeStep = 2;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._selectionBounds.start = bounds.start;
+                                        this._selectionBounds.end = bounds.end;
+                                        this._tentativeSelectionBounds = null;
+                                    }
+                                    else {
+                                        this.selectionModeStep = 0;
+                                        this._removeSelectionButton.style.display = "none";
+                                        this._selectionBounds = null;
+                                        this._tentativeSelectionBounds = null;
+                                    }
+                                }
+                                this._mouseDown = false;
+                                return;
+                            }
+                        case 2:
+                            break;
+                        case 3:
+                            {
+                                if (this._mouseDown) {
+                                    const bounds = this._tentativeSelectionBounds;
+                                    if (bounds != null && bounds.start < bounds.end) {
+                                        this.selectionModeStep = 2;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._selectionBounds.start = bounds.start;
+                                        this._selectionBounds.end = bounds.end;
+                                        this._tentativeSelectionBounds = null;
+                                    }
+                                    else {
+                                        this.selectionModeStep = 0;
+                                        this._removeSelectionButton.style.display = "none";
+                                        this._selectionBounds = null;
+                                        this._tentativeSelectionBounds = null;
+                                    }
+                                }
+                                this._mouseDown = false;
+                                return;
+                            }
+                        case 4:
+                            {
+                                if (this._mouseDown) {
+                                    const bounds = this._tentativeSelectionBounds;
+                                    if (bounds != null && bounds.start < bounds.end) {
+                                        this.selectionModeStep = 2;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._selectionBounds.start = bounds.start;
+                                        this._selectionBounds.end = bounds.end;
+                                        this._tentativeSelectionBounds = null;
+                                    }
+                                    else {
+                                        this.selectionModeStep = 0;
+                                        this._removeSelectionButton.style.display = "none";
+                                        this._selectionBounds = null;
+                                        this._tentativeSelectionBounds = null;
+                                    }
+                                }
+                                this._mouseDown = false;
+                                return;
+                            }
+                        case 5:
+                            {
+                                if (this._mouseDown) {
+                                    const bounds = this._tentativeSelectionBounds;
+                                    const differenceX = Math.abs(this._tentativeDestinationStart - this._floatingSelection.destinationStart);
+                                    const differenceY = Math.abs(this._tentativeAmplitudeOffset - this._floatingSelection.amplitudeOffset);
+                                    if (differenceX != 0 || differenceY != 0) {
+                                        if (bounds.start < bounds.end) {
+                                            this.selectionModeStep = 2;
+                                            this._removeSelectionButton.style.display = "";
+                                            this._selectionBounds.start = bounds.start;
+                                            this._selectionBounds.end = bounds.end;
+                                            this._floatingSelection.destinationStart = this._tentativeDestinationStart;
+                                            this._floatingSelection.destinationEnd = this._tentativeDestinationEnd;
+                                            this._floatingSelection.amplitudeOffset = this._tentativeAmplitudeOffset;
+                                            for (let i = 0; i < 64; i++)
+                                                this.chipData[i] = this.temporaryArray[i];
+                                            stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                                            new ChangeCustomWave(this._doc, this.chipData);
+                                        }
+                                        else {
+                                            this.selectionModeStep = 0;
+                                            this._removeSelectionButton.style.display = "none";
+                                            this._selectionBounds = null;
+                                            this._floatingSelection = null;
+                                            for (let i = 0; i < 64; i++)
+                                                this.chipData[i] = this.temporaryArray[i];
+                                            new ChangeCustomWave(this._doc, this.chipData);
+                                        }
+                                    }
+                                    else {
+                                        this.selectionModeStep = 2;
+                                        this._removeSelectionButton.style.display = "";
+                                    }
+                                    this._tentativeSelectionBounds = null;
+                                    this._tentativeDestinationStart = null;
+                                    this._tentativeDestinationEnd = null;
+                                    this._tentativeAmplitudeOffset = null;
+                                    this._floatingSelectionDragStartX = null;
+                                    this._floatingSelectionDragStartY = null;
+                                    this._lockSelectionHorizontally = false;
+                                }
+                                this._mouseDown = false;
+                                return;
+                            }
+                        case 6:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionStart = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    const newSelectionEnd = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    const differenceX = Math.abs(this._tentativeDestinationStart - this._floatingSelection.destinationStart);
+                                    if (differenceX != 0) {
+                                        if (newSelectionStart < newSelectionEnd) {
+                                            this.selectionModeStep = 2;
+                                            this._removeSelectionButton.style.display = "";
+                                            this._selectionBounds.start = newSelectionStart;
+                                            this._selectionBounds.end = newSelectionEnd;
+                                            this._floatingSelection.destinationStart = this._tentativeDestinationStart;
+                                            this._floatingSelection.destinationEnd = this._tentativeDestinationEnd;
+                                            for (let i = 0; i < 64; i++)
+                                                this.chipData[i] = this.temporaryArray[i];
+                                            stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                                            new ChangeCustomWave(this._doc, this.chipData);
+                                        }
+                                        else {
+                                            this.selectionModeStep = 0;
+                                            this._removeSelectionButton.style.display = "none";
+                                            this._selectionBounds = null;
+                                            this._floatingSelection = null;
+                                            for (let i = 0; i < 64; i++)
+                                                this.chipData[i] = this.temporaryArray[i];
+                                            new ChangeCustomWave(this._doc, this.chipData);
+                                        }
+                                    }
+                                    this._tentativeSelectionBounds = null;
+                                    this._tentativeDestinationStart = null;
+                                    this._tentativeDestinationEnd = null;
+                                    this._floatingSelectionDragStartX = null;
+                                    this._floatingSelectionDragStartY = null;
+                                }
+                                this._mouseDown = false;
+                                return;
+                            }
+                        case 7:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionStart = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    const newSelectionEnd = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    const differenceX = Math.abs(this._tentativeDestinationEnd - this._floatingSelection.destinationEnd);
+                                    if (differenceX != 0) {
+                                        if (newSelectionStart < newSelectionEnd) {
+                                            this.selectionModeStep = 2;
+                                            this._removeSelectionButton.style.display = "";
+                                            this._selectionBounds.start = newSelectionStart;
+                                            this._selectionBounds.end = newSelectionEnd;
+                                            this._floatingSelection.destinationStart = this._tentativeDestinationStart;
+                                            this._floatingSelection.destinationEnd = this._tentativeDestinationEnd;
+                                            for (let i = 0; i < 64; i++)
+                                                this.chipData[i] = this.temporaryArray[i];
+                                            stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                                            new ChangeCustomWave(this._doc, this.chipData);
+                                        }
+                                        else {
+                                            this.selectionModeStep = 0;
+                                            this._removeSelectionButton.style.display = "none";
+                                            this._selectionBounds = null;
+                                            this._floatingSelection = null;
+                                            for (let i = 0; i < 64; i++)
+                                                this.chipData[i] = this.temporaryArray[i];
+                                            new ChangeCustomWave(this._doc, this.chipData);
+                                        }
+                                    }
+                                    this._tentativeSelectionBounds = null;
+                                    this._tentativeDestinationStart = null;
+                                    this._tentativeDestinationEnd = null;
+                                    this._floatingSelectionDragStartX = null;
+                                    this._floatingSelectionDragStartY = null;
+                                }
+                                this._mouseDown = false;
+                                return;
+                            }
+                    }
+                }
                 this._storeChange();
                 this._mouseDown = false;
             };
@@ -20867,7 +23477,7 @@ li.select2-results__option[role=group] > strong:hover {
                 this._subticks.appendChild(SVG.rect({ fill: ColorConfig.fifthNote, x: 0, y: this._editorHeight - 1 - i * 8 * (this._editorHeight / 49), width: this._editorWidth, height: 1 }));
             }
             let col = ColorConfig.getChannelColor(this._doc.song, this._doc.channel).primaryNote;
-            for (let i = 0; i <= 64; i++) {
+            for (let i = 0; i < 64; i++) {
                 let val = this._doc.song.channels[this._doc.channel].instruments[this._doc.getCurrentInstrument()].customChipWave[i];
                 this.chipData[i] = val;
                 this.startingChipData[i] = val;
@@ -20883,32 +23493,325 @@ li.select2-results__option[role=group] > strong:hover {
             this.container.addEventListener("touchcancel", this._whenCursorReleased);
             this._svg.addEventListener("keydown", this._whenKeyPressed);
             this.container.addEventListener("keydown", this._whenKeyPressed);
+            this._curveModeMessage.textContent = getCurveModeStepMessage(this.curveModeStep);
+            this._removeSelectionButton.style.display = "none";
+        }
+        cleanUp() {
+            this.container.removeEventListener("mousedown", this._whenMousePressed);
+            document.removeEventListener("mousemove", this._whenMouseMoved);
+            document.removeEventListener("mouseup", this._whenCursorReleased);
+            this.container.removeEventListener("touchstart", this._whenTouchPressed);
+            this.container.removeEventListener("touchmove", this._whenTouchMoved);
+            this.container.removeEventListener("touchend", this._whenCursorReleased);
+            this.container.removeEventListener("touchcancel", this._whenCursorReleased);
+            this._svg.removeEventListener("keydown", this._whenKeyPressed);
+            this.container.removeEventListener("keydown", this._whenKeyPressed);
+        }
+        copy() {
+            let storedData = Array.from(this.chipData);
+            let storedDestinationStart = 0;
+            let storedDestinationEnd = this.chipData.length;
+            let storedAmplitudeOffset = 0;
+            if (this.drawMode == 3 && this.selectionModeStep == 2) {
+                const bounds = this._selectionBounds;
+                if (this._floatingSelection == null) {
+                    for (let i = 0; i < 64; i++)
+                        this.temporaryArray[i] = this.chipData[i];
+                    this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                }
+                storedData = Array.from(this._floatingSelection.data);
+                storedDestinationStart = this._floatingSelection.destinationStart;
+                storedDestinationEnd = this._floatingSelection.destinationEnd;
+                storedAmplitudeOffset = this._floatingSelection.amplitudeOffset;
+            }
+            window.localStorage.setItem("chipCopy", JSON.stringify({
+                copiedData: storedData,
+                destinationStart: storedDestinationStart,
+                destinationEnd: storedDestinationEnd,
+                amplitudeOffset: storedAmplitudeOffset,
+            }));
+            this.clearSelection();
+        }
+        paste() {
+            const storedChipWaveData = JSON.parse(String(window.localStorage.getItem("chipCopy")));
+            let storedRawData = storedChipWaveData;
+            let storedDestinationStart = 0;
+            let storedDestinationEnd = this.chipData.length;
+            let storedAmplitudeOffset = 0;
+            if (!Array.isArray(storedChipWaveData)) {
+                storedRawData = storedChipWaveData.copiedData;
+                storedDestinationStart = storedChipWaveData.destinationStart;
+                storedDestinationEnd = storedChipWaveData.destinationEnd;
+                storedAmplitudeOffset = storedChipWaveData.amplitudeOffset;
+            }
+            let storedData = new Float32Array(storedRawData);
+            if (this.drawMode == 3) {
+                this.commitFloatingSelection();
+                this.clearSelection();
+                this.selectionModeStep = 2;
+                this._removeSelectionButton.style.display = "";
+                this._selectionBounds = {
+                    start: Math.min(64, Math.max(0, storedDestinationStart)),
+                    end: Math.min(64, Math.max(0, storedDestinationEnd)),
+                };
+                for (let i = 0; i < 64; i++)
+                    this.temporaryArray[i] = this.chipData[i];
+                this._floatingSelection = {
+                    data: storedData,
+                    destinationStart: storedDestinationStart,
+                    destinationEnd: storedDestinationEnd,
+                    amplitudeOffset: storedAmplitudeOffset,
+                };
+                for (let i = 0; i < 64; i++)
+                    this.chipData[i] = this.temporaryArray[i];
+                stampFloatingSelectionOntoChipWave(this.chipData, storedData, storedDestinationStart, storedDestinationEnd, storedAmplitudeOffset);
+            }
+            else {
+                this.clearSelection();
+                stampFloatingSelectionOntoChipWave(this.chipData, storedData, storedDestinationStart, storedDestinationEnd, storedAmplitudeOffset);
+                this._storeChange();
+            }
+            new ChangeCustomWave(this._doc, this.chipData);
+            this.curveModeStep = 0;
+            this._curveModeMessage.textContent = getCurveModeStepMessage(this.curveModeStep);
+            this._renderSelection();
+        }
+        clearSelection() {
+            if (this.selectionModeStep != 0) {
+                if (this._floatingSelection != null) {
+                    for (let i = 0; i < 64; i++)
+                        this.chipData[i] = this.temporaryArray[i];
+                    new ChangeCustomWave(this._doc, this.chipData);
+                }
+            }
+            this.selectionModeStep = 0;
+            this._removeSelectionButton.style.display = "none";
+            this._selectionBounds = null;
+            this._tentativeSelectionBounds = null;
+            this._tentativeDestinationStart = null;
+            this._tentativeDestinationEnd = null;
+            this._tentativeAmplitudeOffset = null;
+            this._floatingSelection = null;
+            this._floatingSelectionDragStartX = null;
+            this._floatingSelectionDragStartY = null;
+            this._renderSelection();
+        }
+        commitFloatingSelection() {
+            if (this._floatingSelection != null) {
+                for (let i = 0; i < 64; i++)
+                    this.chipData[i] = this.temporaryArray[i];
+                stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                new ChangeCustomWave(this._doc, this.chipData);
+                this._storeChange();
+                this._floatingSelection = null;
+            }
+        }
+        _renderSelection() {
+            const bounds = (this._tentativeSelectionBounds != null
+                ? this._tentativeSelectionBounds
+                : this._selectionBounds);
+            if (bounds != null) {
+                const selectionBoxWidth = (bounds.end - bounds.start) / 64 * this._editorWidth;
+                const selectionBoxX0 = bounds.start / 64 * this._editorWidth;
+                const selectionBoxX1 = selectionBoxX0 + selectionBoxWidth;
+                const selectionBoxStartX0 = selectionBoxX0 - this._selectionEdgeMargin;
+                const selectionBoxStartX1 = selectionBoxX0 + this._selectionEdgeMargin;
+                const selectionBoxEndX0 = selectionBoxX1 - this._selectionEdgeMargin;
+                const selectionBoxEndX1 = selectionBoxX1 + this._selectionEdgeMargin;
+                const mouseIsInsideSelection = (!this._mouseDown
+                    && this._mouseX >= selectionBoxX0
+                    && this._mouseX <= selectionBoxX1
+                    && this._mouseY >= 0
+                    && this._mouseY <= this._editorHeight);
+                const mouseIsAtStartOfSelection = (!this._mouseDown
+                    && this._mouseX >= selectionBoxStartX0
+                    && this._mouseX <= selectionBoxStartX1
+                    && this._mouseY >= 0
+                    && this._mouseY <= this._editorHeight
+                    && this._mouseX >= 0
+                    && this._mouseX <= this._editorWidth);
+                const mouseIsAtEndOfSelection = (!this._mouseDown
+                    && this._mouseX >= selectionBoxEndX0
+                    && this._mouseX <= selectionBoxEndX1
+                    && this._mouseY >= 0
+                    && this._mouseY <= this._editorHeight
+                    && this._mouseX >= 0
+                    && this._mouseX <= this._editorWidth);
+                this._selectionBox.setAttribute("visibility", "visible");
+                this._selectionBox.setAttribute("x", String(selectionBoxX0));
+                this._selectionBox.setAttribute("width", String(selectionBoxWidth));
+                this._selectionBox.setAttribute("y", "0");
+                this._selectionBox.setAttribute("height", "" + this._editorHeight);
+                const horizontalMargin = 2;
+                const verticalMargin = 0.5;
+                if (mouseIsAtStartOfSelection) {
+                    this._selectionBoxOverlay.setAttribute("visibility", "visible");
+                    const boxX0 = selectionBoxStartX0;
+                    const boxY0 = 0 - verticalMargin;
+                    const boxX1 = selectionBoxStartX1;
+                    const boxY1 = this._editorHeight + verticalMargin;
+                    this._selectionBoxOverlay.setAttribute("d", "M " + boxX0 + " " + boxY0
+                        + "L " + boxX1 + " " + boxY0
+                        + "L " + boxX1 + " " + boxY1
+                        + "L " + boxX0 + " " + boxY1
+                        + "z");
+                }
+                else if (mouseIsAtEndOfSelection) {
+                    this._selectionBoxOverlay.setAttribute("visibility", "visible");
+                    const boxX0 = selectionBoxEndX0;
+                    const boxY0 = 0 - verticalMargin;
+                    const boxX1 = selectionBoxEndX1;
+                    const boxY1 = this._editorHeight + verticalMargin;
+                    this._selectionBoxOverlay.setAttribute("d", "M " + boxX0 + " " + boxY0
+                        + "L " + boxX1 + " " + boxY0
+                        + "L " + boxX1 + " " + boxY1
+                        + "L " + boxX0 + " " + boxY1
+                        + "z");
+                }
+                else if (mouseIsInsideSelection) {
+                    this._selectionBoxOverlay.setAttribute("visibility", "visible");
+                    const boxX0 = selectionBoxX0 - horizontalMargin;
+                    const boxY0 = 0 - verticalMargin;
+                    const boxX1 = selectionBoxX1 + horizontalMargin;
+                    const boxY1 = this._editorHeight + verticalMargin;
+                    this._selectionBoxOverlay.setAttribute("d", "M " + boxX0 + " " + boxY0
+                        + "L " + boxX1 + " " + boxY0
+                        + "L " + boxX1 + " " + boxY1
+                        + "L " + boxX0 + " " + boxY1
+                        + "z");
+                }
+                else {
+                    this._selectionBoxOverlay.setAttribute("visibility", "hidden");
+                }
+            }
+            else {
+                this._selectionBox.setAttribute("visibility", "hidden");
+                this._selectionBoxOverlay.setAttribute("visibility", "hidden");
+            }
         }
         _whenCursorMoved() {
             if (this._mouseDown) {
                 const index = Math.min(63, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
                 const amp = Math.min(48, Math.max(0, Math.floor(this._mouseY * 49 / this._editorHeight)));
-                if (this._lastIndex != -1 && this._lastIndex != index) {
-                    var lowest = index;
-                    var highest = this._lastIndex;
-                    var startingAmp = amp;
-                    var endingAmp = this._lastAmp;
-                    if (this._lastIndex < index) {
-                        lowest = this._lastIndex;
-                        highest = index;
-                        startingAmp = this._lastAmp;
-                        endingAmp = amp;
+                if (this.drawMode == 0) {
+                    if (this._lastIndex != -1 && this._lastIndex != index) {
+                        var lowest = index;
+                        var highest = this._lastIndex;
+                        var startingAmp = amp;
+                        var endingAmp = this._lastAmp;
+                        if (this._lastIndex < index) {
+                            lowest = this._lastIndex;
+                            highest = index;
+                            startingAmp = this._lastAmp;
+                            endingAmp = amp;
+                        }
+                        for (var i = lowest; i <= highest; i++) {
+                            const medAmp = Math.round(startingAmp + (endingAmp - startingAmp) * ((i - lowest) / (highest - lowest)));
+                            this.chipData[i] = medAmp - 24;
+                            this._blocks.children[i].setAttribute("y", "" + (medAmp * (this._editorHeight / 49)));
+                        }
                     }
-                    for (var i = lowest; i <= highest; i++) {
-                        const medAmp = Math.round(startingAmp + (endingAmp - startingAmp) * ((i - lowest) / (highest - lowest)));
-                        this.chipData[i] = medAmp - 24;
-                        this._blocks.children[i].setAttribute("y", "" + (medAmp * (this._editorHeight / 49)));
+                    else {
+                        this.chipData[index] = amp - 24;
+                        this._blocks.children[index].setAttribute("y", "" + (amp * (this._editorHeight / 49)));
                     }
                 }
-                else {
-                    this.chipData[index] = amp - 24;
-                    this._blocks.children[index].setAttribute("y", "" + (amp * (this._editorHeight / 49)));
+                else if (this.drawMode == 1) {
+                    for (let i = 0; i < 64; i++) {
+                        this.chipData[i] = this.temporaryArray[i];
+                        this._blocks.children[i].setAttribute("y", "" + ((this.temporaryArray[i] + 24) * (this._editorHeight / 49)));
+                    }
+                    let lowest = Math.min(63, Math.max(0, Math.floor(this._lineX0 * 64 / this._editorWidth)));
+                    let startingAmp = Math.min(48, Math.max(0, Math.floor(this._lineY0 * 49 / this._editorHeight)));
+                    let highest = Math.min(63, Math.max(0, Math.floor(this._lineX1 * 64 / this._editorWidth)));
+                    let endingAmp = Math.min(48, Math.max(0, Math.floor(this._lineY1 * 49 / this._editorHeight)));
+                    const temp1 = lowest;
+                    const temp2 = startingAmp;
+                    if (highest != lowest) {
+                        if (highest < lowest) {
+                            lowest = highest;
+                            highest = temp1;
+                            startingAmp = endingAmp;
+                            endingAmp = temp2;
+                        }
+                        for (var i = lowest; i <= highest; i++) {
+                            const medAmp = Math.round(startingAmp + (endingAmp - startingAmp) * ((i - lowest) / (highest - lowest)));
+                            this.chipData[i] = medAmp - 24;
+                            this._blocks.children[i].setAttribute("y", "" + (medAmp * (this._editorHeight / 49)));
+                        }
+                    }
+                    else {
+                        this.chipData[lowest] = startingAmp - 24;
+                        this._blocks.children[lowest].setAttribute("y", "" + (startingAmp * (this._editorHeight / 49)));
+                    }
                 }
+                else if (this.drawMode == 2) {
+                    for (let i = 0; i < 64; i++) {
+                        this.chipData[i] = this.temporaryArray[i];
+                        this._blocks.children[i].setAttribute("y", "" + ((this.temporaryArray[i] + 24) * (this._editorHeight / 49)));
+                    }
+                    const startX = this._lineX0;
+                    const startY = this._lineY0;
+                    const endX = this._lineX1;
+                    const endY = this._lineY1;
+                    const bX = this._curveX0;
+                    const bY = this._curveY0;
+                    const chipStartX = Math.min(63, Math.max(0, Math.floor(startX * 64 / this._editorWidth)));
+                    const chipStartY = Math.min(48, Math.max(0, Math.floor(startY * 49 / this._editorHeight)));
+                    const chipEndX = Math.min(63, Math.max(0, Math.floor(endX * 64 / this._editorWidth)));
+                    const chipEndY = Math.min(48, Math.max(0, Math.floor(endY * 49 / this._editorHeight)));
+                    const chipBX = Math.min(63, Math.max(0, Math.floor(bX * 64 / this._editorWidth)));
+                    const chipBY = Math.min(48, Math.max(0, Math.floor(bY * 49 / this._editorHeight)));
+                    const d1tx = chipStartX - chipBX;
+                    const d1ty = chipStartY - chipBY;
+                    const d1t = Math.sqrt(d1tx * d1tx + d1ty * d1ty);
+                    const d2tx = chipEndX - chipBX;
+                    const d2ty = chipEndY - chipBY;
+                    const d2t = Math.sqrt(d2tx * d2tx + d2ty * d2ty);
+                    const sqrt = Math.sqrt(d1t * d2t);
+                    const d1tIsZero = Math.abs(d1t) < 1.0e-24;
+                    const d2tIsZero = Math.abs(d2t) < 1.0e-24;
+                    const p1ptdx = d1tIsZero ? 0 : ((chipStartX - chipBX) / d1t);
+                    const p1ptdy = d1tIsZero ? 0 : ((chipStartY - chipBY) / d1t);
+                    const p2ptdx = d2tIsZero ? 0 : ((chipEndX - chipBX) / d2t);
+                    const p2ptdy = d2tIsZero ? 0 : ((chipEndY - chipBY) / d2t);
+                    const aX = Math.max(Math.min(chipStartX, chipEndX), Math.min(Math.max(chipStartX, chipEndX), chipBX - 0.5 * sqrt * (p1ptdx + p2ptdx)));
+                    const aY = chipBY - 0.5 * sqrt * (p1ptdy + p2ptdy);
+                    let lowest = Math.min(chipStartX, chipEndX);
+                    let startingAmp = Math.min(chipStartY, chipEndY);
+                    let highest = Math.max(chipStartX, chipEndX);
+                    if (highest != lowest) {
+                        const steps = 200;
+                        for (var i = 0; i < steps; i++) {
+                            const lt = i / (steps - 1);
+                            const la0x = chipStartX;
+                            const la0y = chipStartY;
+                            const lb0x = aX;
+                            const lb0y = aY;
+                            const l0x = la0x + (lb0x - la0x) * lt;
+                            const l0y = la0y + (lb0y - la0y) * lt;
+                            const la1x = aX;
+                            const la1y = aY;
+                            const lb1x = chipEndX;
+                            const lb1y = chipEndY;
+                            const l1x = la1x + (lb1x - la1x) * lt;
+                            const l1y = la1y + (lb1y - la1y) * lt;
+                            const l2x = l0x + (l1x - l0x) * lt;
+                            const l2y = l0y + (l1y - l0y) * lt;
+                            const medIdx = Math.min(63, Math.max(0, Math.round(l2x)));
+                            const medAmp = Math.min(48, Math.max(0, Math.round(l2y)));
+                            this.chipData[medIdx] = medAmp - 24;
+                            this._blocks.children[medIdx].setAttribute("y", "" + (medAmp * (this._editorHeight / 49)));
+                        }
+                    }
+                    else {
+                        this.chipData[lowest] = startingAmp - 24;
+                        this._blocks.children[lowest].setAttribute("y", "" + (startingAmp * (this._editorHeight / 49)));
+                    }
+                }
+                else if (this.drawMode == 3) ;
+                else
+                    throw new Error("Unknown draw mode selected.");
                 new ChangeCustomWave(this._doc, this.chipData);
                 this._lastIndex = index;
                 this._lastAmp = amp;
@@ -20919,29 +23822,272 @@ li.select2-results__option[role=group] > strong:hover {
                 this._blocks.children[i].setAttribute("y", "" + ((this.chipData[i] + 24) * (this._editorHeight / 49)));
             }
         }
+        shiftSamplesUp() {
+            if (this.drawMode != 3 || this.selectionModeStep == 0) {
+                for (let i = 0; i < 64; i++)
+                    this.chipData[i] = Math.min(24, Math.max(-24, this.chipData[i] - 1));
+            }
+            else {
+                if (this.selectionModeStep == 2) {
+                    const bounds = this._selectionBounds;
+                    if (this._selectionBounds == null)
+                        return;
+                    if (this._floatingSelection == null) {
+                        for (let i = 0; i < 64; i++)
+                            this.temporaryArray[i] = this.chipData[i];
+                        this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                    }
+                    for (let i = 0; i < this._floatingSelection.data.length; i++)
+                        this._floatingSelection.data[i] = Math.min(24, Math.max(-24, this._floatingSelection.data[i] - 1));
+                    for (let i = 0; i < 64; i++)
+                        this.chipData[i] = this.temporaryArray[i];
+                    stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                }
+                else {
+                    throw new Error("Attempted to shift waveform points during an intermediate selection tool state.");
+                }
+            }
+            new ChangeCustomWave(this._doc, this.chipData);
+            this._storeChange();
+            this.render();
+        }
+        shiftSamplesDown() {
+            if (this.drawMode != 3 || this.selectionModeStep == 0) {
+                for (let i = 0; i < 64; i++)
+                    this.chipData[i] = Math.min(24, Math.max(-24, this.chipData[i] + 1));
+            }
+            else {
+                if (this.selectionModeStep == 2) {
+                    const bounds = this._selectionBounds;
+                    if (this._selectionBounds == null)
+                        return;
+                    if (this._floatingSelection == null) {
+                        for (let i = 0; i < 64; i++)
+                            this.temporaryArray[i] = this.chipData[i];
+                        this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                    }
+                    for (let i = 0; i < this._floatingSelection.data.length; i++)
+                        this._floatingSelection.data[i] = Math.min(24, Math.max(-24, this._floatingSelection.data[i] + 1));
+                    for (let i = 0; i < 64; i++)
+                        this.chipData[i] = this.temporaryArray[i];
+                    stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._floatingSelection.destinationStart, this._floatingSelection.destinationEnd, this._floatingSelection.amplitudeOffset);
+                }
+                else {
+                    throw new Error("Attempted to shift waveform points during an intermediate selection tool state.");
+                }
+            }
+            new ChangeCustomWave(this._doc, this.chipData);
+            this._storeChange();
+            this.render();
+        }
     }
     class CustomChipPrompt {
         constructor(_doc, _songEditor) {
             this._doc = _doc;
             this._songEditor = _songEditor;
-            this.customChipCanvas = new CustomChipPromptCanvas(this._doc);
+            this.curveModeStepText = div$2({ style: "position: absolute; align-self: center; bottom: 57px; font-size: 15px;" }, "");
+            this.removeSelectionButton = button$2({ style: "position: absolute; width:30%; align-self: center; bottom: 54px; font-size: 13px;" }, [
+                "Cancel Selection (Esc)",
+            ]);
+            this.customChipCanvas = new CustomChipPromptCanvas(this._doc, this.curveModeStepText, this.removeSelectionButton);
             this._playButton = button$2({ style: "width: 55%;", type: "button" });
+            this._undoButton = button$2({ style: "width: 15%; position: absolute; margin-left: 0px; left: 127px; top: 53px;" }, Localization.undoLabel);
+            this._redoButton = button$2({ style: "width: 15%; position: absolute; margin-right: 0px; right: 127px; top: 53px;" }, Localization.redoLabel);
+            this._drawType_Standard = button$2({ style: "border-radius: 0px; width: 65px;", title: "Cursor" }, [
+                SVG.svg({ class: "no-underline", style: "flex-shrink: 0; position: absolute; top: 4px; left: 24px; pointer-events: none;", width: "16", height: "16", viewBox: "0 0 16 16" }, [
+                    SVG.path({ d: "M 14.082 2.182 a 0.5 0.5 0 0 1 0.103 0.557 L 8.528 15.467 a 0.5 0.5 0 0 1 -0.917 -0.007 L 8 8 L 0.803 8.652 a 0.5 0.5 0 0 1 -0.006 -0.916 l 12.728 -5.657 a 0.5 0.5 0 0 1 0.556 0.103 M 3 12 L 2 15 L 5 14 L 7.944 8.996 L 8 8 L 7.005 8.091 z", fill: "currentColor" }),
+                ]),
+            ]);
+            this._drawType_Line = button$2({ style: "border-radius: 0px; width: 65px;", title: "Line" }, [
+                SVG.svg({ class: "no-underline", style: "flex-shrink: 0; position: absolute; top: 4px; left: 24px; pointer-events: none;", width: "16", height: "16", viewBox: "0 0 16 16" }, [
+                    SVG.path({ d: "M 14 2.5 a 12 12 0 0 0 -0.5 -0.5 h -6.967 a 0.5 0.5 0 0 0 0 1 h 5.483 L 2.146 13.146 a 0.5 0.5 0 0 0 0.708 0.708 L 13.009 3.991 V 9.504 a 0.5 0.5 0 0 0 1 0 z", fill: "currentColor" }),
+                ]),
+            ]);
+            this._drawType_Curve = button$2({ style: "border-radius: 0px; width: 65px;", title: "Curve" }, [
+                SVG.svg({ class: "no-underline", style: "flex-shrink: 0; position: absolute; top: 4px; left: 24px; pointer-events: none;", width: "16", height: "16", viewBox: "0 0 16 16" }, [
+                    SVG.path({ d: "M0 10.5A1.5 1.5 0 0 1 1.5 9h1A1.5 1.5 0 0 1 4 10.5v1A1.5 1.5 0 0 1 2.5 13h-1A1.5 1.5 0 0 1 0 11.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm10.5.5A1.5 1.5 0 0 1 13.5 9h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM6 4.5A1.5 1.5 0 0 1 7.5 3h1A1.5 1.5 0 0 1 10 4.5v1A1.5 1.5 0 0 1 8.5 7h-1A1.5 1.5 0 0 1 6 5.5zM7.5 4a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z", fill: "currentColor" }),
+                    SVG.path({ d: "M6 4.5H1.866a1 1 0 1 0 0 1h2.668A6.52 6.52 0 0 0 1.814 9H2.5q.186 0 .358.043a5.52 5.52 0 0 1 3.185-3.185A1.5 1.5 0 0 1 6 5.5zm3.957 1.358A1.5 1.5 0 0 0 10 5.5v-1h4.134a1 1 0 1 1 0 1h-2.668a6.52 6.52 0 0 1 2.72 3.5H13.5q-.185 0-.358.043a5.52 5.52 0 0 0-3.185-3.185", fill: "currentColor" }),
+                ]),
+            ]);
+            this._drawType_Selection = button$2({ style: "border-radius: 0px; width: 65px;", title: "Selection" }, [
+                SVG.svg({ class: "no-underline", style: "flex-shrink: 0; position: absolute; top: 4px; left: 24px; pointer-events: none;", width: "16", height: "16", viewBox: "0 0 16 16" }, [
+                    SVG.path({ d: "M 2.5 0 q -0.25 0 -0.487 0.048 l 0.194 0.98 A 1.5 1.5 0 0 1 2.5 1 h 0.458 V 0 z m 2.292 0 h -0.917 v 1 h 0.917 z m 1.833 0 h -0.917 v 1 h 0.917 z m 1.833 0 h -0.916 v 1 h 0.916 z m 1.834 0 h -0.917 v 1 h 0.917 z m 1.833 0 h -0.917 v 1 h 0.917 z M 13.5 0 h -0.458 v 1 h 0.458 q 0.151 0 0.293 0.029 l 0.194 -0.981 A 2.5 2.5 0 0 0 13.5 0 m 2.079 1.11 a 2.5 2.5 0 0 0 -0.69 -0.689 l -0.556 0.831 q 0.248 0.167 0.415 0.415 l 0.83 -0.556 z M 1.11 0.421 a 2.5 2.5 0 0 0 -0.689 0.69 l 0.831 0.556 c 0.11 -0.164 0.251 -0.305 0.415 -0.415 z M 16 2.5 q 0 -0.25 -0.048 -0.487 l -0.98 0.194 q 0.027 0.141 0.028 0.293 v 0.458 h 1 z M 0.048 2.013 A 2.5 2.5 0 0 0 0 2.5 v 0.458 h 1 V 2.5 q 0 -0.151 0.029 -0.293 z M 0 3.875 v 0.917 h 1 v -0.917 z m 16 0.917 v -0.917 h -1 v 0.917 z M 0 5.708 v 0.917 h 1 v -0.917 z m 16 0.917 v -0.917 h -1 v 0.917 z M 0 7.542 v 0.916 h 1 v -0.916 z m 15 0.916 h 1 v -0.916 h -1 z M 0 9.375 v 0.917 h 1 v -0.917 z m 16 0.917 v -0.917 h -1 v 0.917 z m -16 0.916 v 0.917 h 1 v -0.917 z m 16 0.917 v -0.917 h -1 v 0.917 z m -16 0.917 v 0.458 q 0 0.25 0.048 0.487 l 0.98 -0.194 A 1.5 1.5 0 0 1 1 13.5 v -0.458 z m 16 0.458 v -0.458 h -1 v 0.458 q 0 0.151 -0.029 0.293 l 0.981 0.194 Q 16 13.75 16 13.5 M 0.421 14.89 c 0.183 0.272 0.417 0.506 0.69 0.689 l 0.556 -0.831 a 1.5 1.5 0 0 1 -0.415 -0.415 z m 14.469 0.689 c 0.272 -0.183 0.506 -0.417 0.689 -0.69 l -0.831 -0.556 c -0.11 0.164 -0.251 0.305 -0.415 0.415 l 0.556 0.83 z m -12.877 0.373 Q 2.25 16 2.5 16 h 0.458 v -1 H 2.5 q -0.151 0 -0.293 -0.029 z M 13.5 16 q 0.25 0 0.487 -0.048 l -0.194 -0.98 A 1.5 1.5 0 0 1 13.5 15 h -0.458 v 1 z m -9.625 0 h 0.917 v -1 h -0.917 z m 1.833 0 h 0.917 v -1 h -0.917 z m 1.834 -1 v 1 h 0.916 v -1 z m 1.833 1 h 0.917 v -1 h -0.917 z m 1.833 0 h 0.917 v -1 h -0.917 z", fill: "currentColor" }),
+                ]),
+            ]);
+            this.drawToolsContainer = div$2({ class: "instrument-bar", style: "margin-left: -4px; display: grid; grid-template-columns: repeat(4, 70px); grid-gap: 2px 0px; width: 270px;" }, this._drawType_Standard, this._drawType_Line, this._drawType_Curve, this._drawType_Selection);
+            this.dragOnSelectionButton1 = button$2({ style: "width: 90px; position: absolute; top: 84px; align-self: center;", title: "Extend Selection Ends" }, [
+                SVG.svg({ class: "no-underline", style: "flex-shrink: 0; scale: 2; position: absolute; top: 7px; left: 31px; pointer-events: none;", width: "24", height: "24", viewBox: "0 0 30 24" }, [
+                    SVG.path({ d: "M4 3 5 3 5 3.5 4 3.5 4 3M6 3 7 3 7 3.5 6 3.5 6 3M8 3 9 3 9 3.5 8 3.5 8 3M10 3 11 3 11 3.5 10 3.5 10 3M12 3 13 3 13 3.5 12 3.5 12 3M14 3 15 3 15 3.5 14 3.5 14 3M16 3 17 3 17 3.5 16 3.5 16 3M18 3 19 3 19 3.5 18 3.5 18 3M3 4 3.5 4 3.5 5 3 5 3 4M3 6 3.5 6 3.5 7 3 7 3 6M3 8 3.5 8 3.5 9 3 9 3 8M3 10 3.5 10 3.5 11 3 11 3 10M3 12 3.5 12 3.5 13 3 13 3 12M4 14 4 13.5 5 13.5 5 14 4 14M6 14 6 13.5 7 13.5 7 14 6 14M8 14 8 13.5 9 13.5 9 14 8 14M10 14 10 13.5 11 13.5 11 14 10 14M12 14 12 13.5 13 13.5 13 14 12 14M14 14 14 13.5 15 13.5 15 14 14 14M16 14 16 13.5 17 13.5 17 14 16 14M18 14 18 13.5 19 13.5 19 14 18 14M20 4 19.5 4 19.5 5 20 5 20 4M20 6 19.5 6 19.5 7 20 7 20 6M24 8 19.5 8 19.5 9 24 9 24 11 26 8.5 24 6 24 8M20 10 19.5 10 19.5 11 20 11 20 10M20 12 19.5 12 19.5 13 20 13 20 12M28 6 27 5 27.5 7 28 7 28 6M28 8 27.5 8 27.5 9 28 9 28 8M28 10 27.5 10 27 12 28 11 28 10ZM5 6 5 5 10 5 10 11 13 11 13 7 16 7 16 9 18 9 18 10 16 10 16 8 13 8 13 12 10 12 10 6 5 6Z", fill: "currentColor" }),
+                ]),
+            ]);
+            this.dragOnSelectionButton2 = button$2({ style: "width: 90px; position: absolute; top: 84px; align-self: center;", title: "Stretch Items in Selection" }, [
+                SVG.svg({ class: "no-underline", style: "flex-shrink: 0; scale: 2; position: absolute; top: 7px; left: 31px; pointer-events: none;", width: "24", height: "24", viewBox: "0 0 30 24" }, [
+                    SVG.path({ d: "M4 3 5 3 5 3.5 4 3.5 4 3M6 3 7 3 7 3.5 6 3.5 6 3M8 3 9 3 9 3.5 8 3.5 8 3M10 3 11 3 11 3.5 10 3.5 10 3M12 3 13 3 13 3.5 12 3.5 12 3M14 3 15 3 15 3.5 14 3.5 14 3M16 3 17 3 17 3.5 16 3.5 16 3M18 3 19 3 19 3.5 18 3.5 18 3M20 3 21 3 21 3.5 20 3.5 20 3M22 3 23 3 23 3.5 22 3.5 22 3M24 3 25 3 25 3.5 24 3.5 24 3M26 3 27 3 27 3.5 26 3.5 26 3M3 4 3.5 4 3.5 5 3 5 3 4M3 6 3.5 6 3.5 7 3 7 3 6M3 8 3.5 8 3.5 9 3 9 3 8M3 10 3.5 10 3.5 11 3 11 3 10M3 12 3.5 12 3.5 13 3 13 3 12M4 14 4 13.5 5 13.5 5 14 4 14M6 14 6 13.5 7 13.5 7 14 6 14M8 14 8 13.5 9 13.5 9 14 8 14M10 14 10 13.5 11 13.5 11 14 10 14M12 14 12 13.5 13 13.5 13 14 12 14M14 14 14 13.5 15 13.5 15 14 14 14M16 14 16 13.5 17 13.5 17 14 16 14M18 14 18 13.5 19 13.5 19 14 18 14M20 14 21 14 21 13.5 20 13.5 20 14M22 14 23 14 23 13.5 22 13.5 22 14M24 14 25 14 25 13.5 24 13.5 24 14M26 14 27 14 27 13.5 26 13.5 26 14M28 4 27.5 4 27.5 5 28 5 28 4M28 6 27.5 6 27.5 7 28 7 28 6M28 8 27.5 8 27.5 9 28 9 28 8M28 10 27.5 10 27.5 11 28 11 28 10M28 12 27.5 12 27.5 13 28 13 28 12ZM5 6 5 5 13 5 13 11 18 11 18 7 23 7 23 9 26 9 26 10 23 10 23 8 18 8 18 12 13 12 13 6 5 6Z", fill: "currentColor" }),
+                ]),
+            ]);
+            this._flipHorizontalButton = button$2({ style: "position: absolute; width: 14%; align-self: center; left: 224px; bottom: 20px; font-size: 10.35px;" }, [
+                "Flip Left ↔ Right (H)",
+            ]);
+            this._flipVerticalButton = button$2({ style: "position: absolute; width: 14%; align-self: center; right: 224px; bottom: 20px; font-size: 10.35px;" }, [
+                "Flip Top ↔ Bottom (N)",
+            ]);
             this._cancelButton = button$2({ class: "cancelButton" });
-            this._okayButton = button$2({ class: "okayButton", style: "width:45%;" }, "Okay");
-            this.container = div$2({ class: "prompt noSelection", style: "width: 600px;" }, h2$2("Edit Custom Chip Instrument"), div$2({ style: "display: flex; width: 55%; align-self: center; flex-direction: row; align-items: center; justify-content: center;" }, this._playButton), div$2({ style: "display: flex; flex-direction: row; align-items: center; justify-content: center;" }, this.customChipCanvas.container), div$2({ style: "display: flex; flex-direction: row-reverse; justify-content: space-between;" }, this._okayButton), this._cancelButton);
+            this._okayButton = button$2({ class: "okayButton", style: "width:32%; font-size: 15px;" }, Localization.confirmLabel);
+            this.copyButton = button$2({ style: "width: 36.66%; margin-right: 5px; text-align: center;", class: "copyButton" }, [
+                Localization.copyLabel,
+                SVG.svg({ style: "flex-shrink: 0; position: absolute; left: 0; top: 50%; margin-top: -1em; pointer-events: none;", width: "2em", height: "2em", viewBox: "-5 -21 26 26" }, [
+                    SVG.path({ d: "M 0 -15 L 1 -15 L 1 0 L 13 0 L 13 1 L 0 1 L 0 -15 z M 2 -1 L 2 -17 L 10 -17 L 14 -13 L 14 -1 z M 3 -2 L 13 -2 L 13 -12 L 9 -12 L 9 -16 L 3 -16 z", fill: "currentColor" }),
+                ]),
+            ]);
+            this.pasteButton = button$2({ style: "width: 36.66%; text-align: center;", class: "pasteButton" }, [
+                Localization.pasteLabel,
+                SVG.svg({ style: "flex-shrink: 0; position: absolute; left: 0; top: 50%; margin-top: -1em; pointer-events: none;", width: "2em", height: "2em", viewBox: "0 0 26 26" }, [
+                    SVG.path({ d: "M 8 18 L 6 18 L 6 5 L 17 5 L 17 7 M 9 8 L 16 8 L 20 12 L 20 22 L 9 22 z", stroke: "currentColor", fill: "none" }),
+                    SVG.path({ d: "M 9 3 L 14 3 L 14 6 L 9 6 L 9 3 z M 16 8 L 20 12 L 16 12 L 16 8 z", fill: "currentColor", }),
+                ]),
+            ]);
+            this.copyPasteContainer = div$2({ style: "position: absolute; left: -11px; bottom: 20px; width: 40%;" }, this.copyButton, this.pasteButton);
+            this.loadWaveformPresetSelect = buildHeaderedOptions(Localization.loadPresetLabel, select$1({ style: "font-size: 15px; position: absolute; align-self: left; left: 20px; bottom: 54px; text-align: center; width: 30%; text-align-last: center;" }), Config.chipWaves.map(wave => wave.name));
+            this.randomizeButton = button$2({ style: "font-size: 15px; position: absolute; align-self: right; right: 20px; bottom: 54px; text-align: center; width: 30%; text-align-last: center;" }, [
+                Localization.random2Label,
+                SVG.svg({ style: "flex-shrink: 0; position: absolute; left: 4px; margin-top: 0.05em; pointer-events: none;", width: "16", height: "16", viewBox: "0 0 16 16" }, [
+                    SVG.path({ d: "M13 1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2zM3 0a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V3a3 3 0 0 0-3-3z", fill: "currentColor" }),
+                    SVG.path({ d: "M5.5 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m8 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m0 8a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m-8 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0", fill: "currentColor" }),
+                ]),
+            ]);
+            this.container = div$2({ class: "prompt noSelection", style: "width: 600px;" }, h2$2("Edit Custom Chip Instrument"), this._undoButton, this._redoButton, this.dragOnSelectionButton1, this.dragOnSelectionButton2, div$2({ style: "display: flex; width: 55%; align-self: center; flex-direction: row; align-items: center; justify-content: center;" }, this._playButton), div$2({ style: "margin-top: 36px; margin-bottom: 3px; align-self: center; display: flex; flex-direction: row; align-items: center; justify-content: center;" }, this.drawToolsContainer), div$2({ style: "margin-top: 2px; display: flex; flex-direction: row; align-items: center; justify-content: center;" }, this.customChipCanvas.container), this.curveModeStepText, this.removeSelectionButton, this._flipHorizontalButton, this._flipVerticalButton, this.loadWaveformPresetSelect, this.randomizeButton, div$2({ style: "display: flex; flex-direction: row-reverse; justify-content: space-between;" }, this._okayButton, this.copyPasteContainer), this._cancelButton);
             this._togglePlay = () => {
                 this._songEditor.togglePlay();
                 this.updatePlayButton();
+            };
+            this._removeSelection = () => {
+                this.customChipCanvas.clearSelection();
+                this._songEditor.refocusStage();
+            };
+            this._selectStandardDrawType = () => {
+                this._drawType_Standard.classList.add("selected-instrument");
+                this._drawType_Line.classList.remove("selected-instrument");
+                this._drawType_Curve.classList.remove("selected-instrument");
+                this._drawType_Selection.classList.remove("selected-instrument");
+                this.customChipCanvas.drawMode = 0;
+                this.customChipCanvas.clearSelection();
+                this.curveModeStepText.style.display = "none";
+                this.dragOnSelectionButton1.style.display = "none";
+                this.dragOnSelectionButton2.style.display = "none";
+            };
+            this._selectLineDrawType = () => {
+                this._drawType_Standard.classList.remove("selected-instrument");
+                this._drawType_Line.classList.add("selected-instrument");
+                this._drawType_Curve.classList.remove("selected-instrument");
+                this._drawType_Selection.classList.remove("selected-instrument");
+                this.customChipCanvas.drawMode = 1;
+                this.customChipCanvas.clearSelection();
+                this.curveModeStepText.style.display = "none";
+                this.dragOnSelectionButton1.style.display = "none";
+                this.dragOnSelectionButton2.style.display = "none";
+            };
+            this._selectCurveDrawType = () => {
+                this._drawType_Standard.classList.remove("selected-instrument");
+                this._drawType_Line.classList.remove("selected-instrument");
+                this._drawType_Curve.classList.add("selected-instrument");
+                this._drawType_Selection.classList.remove("selected-instrument");
+                if (this.customChipCanvas.drawMode != 2)
+                    this.customChipCanvas.curveModeStep = 0;
+                this.customChipCanvas.drawMode = 2;
+                this.customChipCanvas.clearSelection();
+                this.curveModeStepText.style.display = "";
+                this.curveModeStepText.textContent = getCurveModeStepMessage(this.customChipCanvas.curveModeStep);
+                this.dragOnSelectionButton1.style.display = "none";
+                this.dragOnSelectionButton2.style.display = "none";
+            };
+            this._selectSelectionDrawType = () => {
+                this._drawType_Standard.classList.remove("selected-instrument");
+                this._drawType_Line.classList.remove("selected-instrument");
+                this._drawType_Curve.classList.remove("selected-instrument");
+                this._drawType_Selection.classList.add("selected-instrument");
+                this.customChipCanvas.drawMode = 3;
+                this.customChipCanvas.clearSelection();
+                this.curveModeStepText.style.display = "none";
+                this.dragOnSelectionButton1.style.display = "";
+                this.dragOnSelectionButton2.style.display = "none";
             };
             this._close = () => {
                 this._doc.prompt = null;
                 this._doc.undo();
             };
             this.cleanUp = () => {
+                this.customChipCanvas.cleanUp();
                 this._okayButton.removeEventListener("click", this._saveChanges);
                 this._cancelButton.removeEventListener("click", this._close);
                 this.container.removeEventListener("keydown", this.whenKeyPressed);
+                this.copyButton.removeEventListener("click", this._copySettings);
+                this.pasteButton.removeEventListener("click", this._pasteSettings);
+                this.loadWaveformPresetSelect.removeEventListener("change", this._customWavePresetHandler);
+                this.randomizeButton.removeEventListener("click", this._decideRandomization);
                 this._playButton.removeEventListener("click", this._togglePlay);
+                this._drawType_Standard.removeEventListener("click", this._selectStandardDrawType);
+                this._drawType_Line.removeEventListener("click", this._selectLineDrawType);
+                this._drawType_Curve.removeEventListener("click", this._selectCurveDrawType);
+                this._drawType_Selection.removeEventListener("click", this._selectSelectionDrawType);
+                this.removeSelectionButton.removeEventListener("click", this._removeSelection);
+                this._flipHorizontalButton.removeEventListener("click", this.customChipCanvas.flipHorizontally);
+                this._flipVerticalButton.removeEventListener("click", this.customChipCanvas.flipVertically);
+            };
+            this._copySettings = () => {
+                this.customChipCanvas.copy();
+            };
+            this._pasteSettings = () => {
+                this.customChipCanvas.paste();
+            };
+            this._extendSelectionPressed = () => {
+                this.dragOnSelectionButton1.style.display = "none";
+                this.dragOnSelectionButton2.style.display = "";
+                this.customChipCanvas.selectionDragEvent = 1;
+                this._songEditor.refocusStage();
+            };
+            this._stretchSelectionPressed = () => {
+                this.dragOnSelectionButton1.style.display = "";
+                this.dragOnSelectionButton2.style.display = "none";
+                this.customChipCanvas.selectionDragEvent = 0;
+                this._songEditor.refocusStage();
+            };
+            this._customWavePresetHandler = (event) => {
+                let customWaveArray = new Float32Array(64);
+                let index = this.loadWaveformPresetSelect.selectedIndex - 1;
+                let maxValue = Number.MIN_VALUE;
+                let minValue = Number.MAX_VALUE;
+                let arrayPoint = 0;
+                let arrayStep = (Config.chipWaves[index].samples.length - 1) / 64.0;
+                for (let i = 0; i < 64; i++) {
+                    customWaveArray[i] = (Config.chipWaves[index].samples[Math.floor(arrayPoint)] - Config.chipWaves[index].samples[(Math.floor(arrayPoint) + 1)]) / arrayStep;
+                    if (customWaveArray[i] < minValue)
+                        minValue = customWaveArray[i];
+                    if (customWaveArray[i] > maxValue)
+                        maxValue = customWaveArray[i];
+                    arrayPoint += arrayStep;
+                }
+                for (let i = 0; i < 64; i++) {
+                    customWaveArray[i] -= minValue;
+                    customWaveArray[i] /= (maxValue - minValue);
+                    customWaveArray[i] *= 48.0;
+                    customWaveArray[i] -= 24.0;
+                    customWaveArray[i] = Math.ceil(customWaveArray[i]);
+                    this.customChipCanvas.chipData[i] = customWaveArray[i];
+                }
+                this.customChipCanvas._storeChange();
+                new ChangeCustomWave(this._doc, customWaveArray);
+                this.customChipCanvas.curveModeStep = 0;
+                this.curveModeStepText.textContent = getCurveModeStepMessage(this.customChipCanvas.curveModeStep);
+                this.loadWaveformPresetSelect.selectedIndex = 0;
+            };
+            this._decideRandomization = () => {
+                if (this.customChipCanvas.drawMode != 3 || this.customChipCanvas.selectionModeStep == 0) {
+                    this.customChipCanvas._randomizeCustomChip();
+                }
+                else {
+                    this.customChipCanvas._randomizeSelection();
+                }
+                this.curveModeStepText.textContent = getCurveModeStepMessage(this.customChipCanvas.curveModeStep);
             };
             this.whenKeyPressed = (event) => {
                 if (event.target.tagName != "BUTTON" && event.keyCode == 13) {
@@ -20965,6 +24111,62 @@ li.select2-results__option[role=group] > strong:hover {
                 else if (event.keyCode == 221) {
                     this._doc.synth.goToNextBar();
                 }
+                else if (event.keyCode == 187
+                    || event.keyCode == 61
+                    || event.keyCode == 171) {
+                    this.customChipCanvas.shiftSamplesUp();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 189
+                    || event.keyCode == 173) {
+                    this.customChipCanvas.shiftSamplesDown();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 82) {
+                    this._decideRandomization();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 67) {
+                    this.customChipCanvas.copy();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 86) {
+                    this.customChipCanvas.paste();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 72) {
+                    this.customChipCanvas.flipHorizontally();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 78) {
+                    this.customChipCanvas.flipVertically();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 49) {
+                    this._selectStandardDrawType();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 50) {
+                    this._selectLineDrawType();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 51) {
+                    this._selectCurveDrawType();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 52) {
+                    this._selectSelectionDrawType();
+                    event.stopPropagation();
+                }
+                else if (event.keyCode == 27) {
+                    event.stopPropagation();
+                    if (this.customChipCanvas.selectionModeStep != 0) {
+                        this.customChipCanvas.clearSelection();
+                    }
+                    else {
+                        this._close();
+                    }
+                }
             };
             this._saveChanges = () => {
                 this._doc.prompt = null;
@@ -20974,8 +24176,33 @@ li.select2-results__option[role=group] > strong:hover {
             this._okayButton.addEventListener("click", this._saveChanges);
             this._cancelButton.addEventListener("click", this._close);
             this.container.addEventListener("keydown", this.whenKeyPressed);
+            this.copyButton.addEventListener("click", this._copySettings);
+            this.pasteButton.addEventListener("click", this._pasteSettings);
+            this.loadWaveformPresetSelect.addEventListener("change", this._customWavePresetHandler);
+            this.randomizeButton.addEventListener("click", this._decideRandomization);
+            this._undoButton.addEventListener("click", this.customChipCanvas.undo);
+            this._redoButton.addEventListener("click", this.customChipCanvas.redo);
             this._playButton.addEventListener("click", this._togglePlay);
             this.updatePlayButton();
+            this._drawType_Standard.addEventListener("click", this._selectStandardDrawType);
+            this._drawType_Line.addEventListener("click", this._selectLineDrawType);
+            this._drawType_Curve.addEventListener("click", this._selectCurveDrawType);
+            this._drawType_Selection.addEventListener("click", this._selectSelectionDrawType);
+            this.removeSelectionButton.addEventListener("click", this._removeSelection);
+            this._flipHorizontalButton.addEventListener("click", this.customChipCanvas.flipHorizontally);
+            this._flipVerticalButton.addEventListener("click", this.customChipCanvas.flipVertically);
+            this.dragOnSelectionButton1.addEventListener("click", this._extendSelectionPressed);
+            this.dragOnSelectionButton2.addEventListener("click", this._stretchSelectionPressed);
+            this.curveModeStepText.style.display = "none";
+            this.removeSelectionButton.style.display = "none";
+            this.dragOnSelectionButton1.style.display = "none";
+            this.dragOnSelectionButton2.style.display = "none";
+            let colors = ColorConfig.getChannelColor(this._doc.song, this._doc.channel);
+            this.drawToolsContainer.style.setProperty("--text-color-lit", colors.primaryNote);
+            this.drawToolsContainer.style.setProperty("--text-color-dim", colors.secondaryNote);
+            this.drawToolsContainer.style.setProperty("--background-color-lit", colors.primaryChannel);
+            this.drawToolsContainer.style.setProperty("--background-color-dim", colors.secondaryChannel);
+            this._drawType_Standard.classList.add("selected-instrument");
             setTimeout(() => this._playButton.focus());
             this.customChipCanvas.render();
         }
@@ -20983,14 +24210,14 @@ li.select2-results__option[role=group] > strong:hover {
             if (this._doc.synth.playing) {
                 this._playButton.classList.remove("playButton");
                 this._playButton.classList.add("pauseButton");
-                this._playButton.title = "Pause (Space)";
-                this._playButton.innerText = "Pause";
+                this._playButton.title = Localization.pauseSpaceLabel;
+                this._playButton.innerText = Localization.pauseLabel;
             }
             else {
                 this._playButton.classList.remove("pauseButton");
                 this._playButton.classList.add("playButton");
-                this._playButton.title = "Play (Space)";
-                this._playButton.innerText = "Play";
+                this._playButton.title = Localization.playSpaceLabel;
+                this._playButton.innerText = Localization.playLabel;
             }
         }
     }
@@ -21896,7 +25123,7 @@ li.select2-results__option[role=group] > strong:hover {
         return Math.pow(volumeMult, 0.25) * 127;
     }
 
-    const { button: button$4, div: div$4, h2: h2$4, input: input$2, select: select$1, option: option$1 } = HTML;
+    const { button: button$4, div: div$4, h2: h2$4, input: input$2, select: select$2, option: option$2 } = HTML;
     function lerp(low, high, t) {
         return low + t * (high - low);
     }
@@ -21929,7 +25156,7 @@ li.select2-results__option[role=group] > strong:hover {
             this._enableIntro = input$2({ type: "checkbox" });
             this._loopDropDown = input$2({ style: "width: 2em;", type: "number", min: "1", max: "4", step: "1" });
             this._enableOutro = input$2({ type: "checkbox" });
-            this._formatSelect = select$1({ style: "width: 100%;" }, option$1({ value: "wav" }, "Export to .wav file."), option$1({ value: "mp3" }, "Export to .mp3 file."), option$1({ value: "midi" }, "Export to .mid file."), option$1({ value: "json" }, "Export to .json file."), option$1({ value: "html" }, "Export to .html file."));
+            this._formatSelect = select$2({ style: "width: 100%;" }, option$2({ value: "wav" }, "Export to .wav file."), option$2({ value: "mp3" }, "Export to .mp3 file."), option$2({ value: "midi" }, "Export to .mid file."), option$2({ value: "json" }, "Export to .json file."), option$2({ value: "html" }, "Export to .html file."));
             this._cancelButton = button$4({ class: "cancelButton" });
             this._exportButton = button$4({ class: "exportButton", style: "width:45%;" }, "Export");
             this._outputProgressBar = div$4({ style: `width: 0%; background: ${ColorConfig.loopAccent}; height: 100%; position: absolute; z-index: 2;` });
@@ -24813,12 +28040,12 @@ You should be redirected to the song at:<br /><br />
         }
     }
 
-    const { button: button$8, div: div$8, span: span$2, h2: h2$8, input: input$6, br: br$2, select: select$2, option: option$2 } = HTML;
+    const { button: button$8, div: div$8, span: span$2, h2: h2$8, input: input$6, br: br$2, select: select$3, option: option$3 } = HTML;
     class MoveNotesSidewaysPrompt {
         constructor(_doc) {
             this._doc = _doc;
             this._beatsStepper = input$6({ style: "width: 3em; margin-left: 1em;", type: "number", step: "0.01", value: "0" });
-            this._conversionStrategySelect = select$2({ style: "width: 100%;" }, option$2({ value: "overflow" }, "Overflow notes across bars."), option$2({ value: "wrapAround" }, "Wrap notes around within bars."));
+            this._conversionStrategySelect = select$3({ style: "width: 100%;" }, option$3({ value: "overflow" }, "Overflow notes across bars."), option$3({ value: "wrapAround" }, "Wrap notes around within bars."));
             this._cancelButton = button$8({ class: "cancelButton" });
             this._okayButton = button$8({ class: "okayButton", style: "width:45%;" }, "Okay");
             this.container = div$8({ class: "prompt noSelection", style: "width: 250px;" }, h2$8("Move Notes Sideways"), div$8({ style: "display: flex; flex-direction: row; align-items: center; height: 2em; justify-content: flex-end;" }, div$8({ style: "text-align: right;" }, "Beats to move:", br$2(), span$2({ style: `font-size: smaller; color: ${ColorConfig.secondaryText};` }, "(Negative is left, positive is right)")), this._beatsStepper), div$8({ style: "display: flex; flex-direction: row; align-items: center; height: 2em; justify-content: flex-end;" }, div$8({ class: "selectContainer", style: "width: 100%;" }, this._conversionStrategySelect)), div$8({ style: "display: flex; flex-direction: row-reverse; justify-content: space-between;" }, this._okayButton), this._cancelButton);
@@ -27733,12 +30960,12 @@ You should be redirected to the song at:<br /><br />
         }
     }
 
-    const { button: button$9, div: div$9, span: span$3, h2: h2$9, input: input$7, br: br$3, select: select$3, option: option$3 } = HTML;
+    const { button: button$9, div: div$9, span: span$3, h2: h2$9, input: input$7, br: br$3, select: select$4, option: option$4 } = HTML;
     class SongDurationPrompt {
         constructor(_doc) {
             this._doc = _doc;
             this._barsStepper = input$7({ style: "width: 3em; margin-left: 1em;", type: "number", step: "1" });
-            this._positionSelect = select$3({ style: "width: 100%;" }, option$3({ value: "end" }, "Apply change at end of song."), option$3({ value: "beginning" }, "Apply change at beginning of song."));
+            this._positionSelect = select$4({ style: "width: 100%;" }, option$4({ value: "end" }, "Apply change at end of song."), option$4({ value: "beginning" }, "Apply change at beginning of song."));
             this._cancelButton = button$9({ class: "cancelButton" });
             this._okayButton = button$9({ class: "okayButton", style: "width:45%;" }, "Okay");
             this.container = div$9({ class: "prompt noSelection", style: "width: 250px;" }, h2$9("Song Length"), div$9({ style: "display: flex; flex-direction: row; align-items: center; height: 2em; justify-content: flex-end;" }, div$9({ style: "display: inline-block; text-align: right;" }, "Bars per song:", br$3(), span$3({ style: `font-size: smaller; color: ${ColorConfig.secondaryText};` }, "(Multiples of 4 are recommended)")), this._barsStepper), div$9({ style: "display: flex; flex-direction: row; align-items: center; height: 2em; justify-content: flex-end;" }, div$9({ class: "selectContainer", style: "width: 100%;" }, this._positionSelect)), div$9({ style: "display: flex; flex-direction: row-reverse; justify-content: space-between;" }, this._okayButton), this._cancelButton);
@@ -27921,7 +31148,7 @@ You should be redirected to the song at:<br /><br />
         }
     }
 
-    const { button: button$a, div: div$a, h2: h2$a, p: p$2, select: select$4, option: option$4, iframe } = HTML;
+    const { button: button$a, div: div$a, h2: h2$a, p: p$2, select: select$5, option: option$5, iframe } = HTML;
     class SongRecoveryPrompt {
         constructor(_doc) {
             this._doc = _doc;
@@ -27940,9 +31167,9 @@ You should be redirected to the song at:<br /><br />
                 this._songContainer.appendChild(p$2("There are no recovered songs available yet. Try making a song!"));
             }
             for (const song of songs) {
-                const versionMenu = select$4({ style: "width: 100%;" });
+                const versionMenu = select$5({ style: "width: 100%;" });
                 for (const version of song.versions) {
-                    versionMenu.appendChild(option$4({ value: version.time }, version.name + ": " + new Date(version.time).toLocaleString()));
+                    versionMenu.appendChild(option$5({ value: version.time }, version.name + ": " + new Date(version.time).toLocaleString()));
                 }
                 const player = iframe({ style: "width: 100%; height: 60px; border: none; display: block;" });
                 player.src = "player/#song=" + window.localStorage.getItem(versionToKey(song.versions[0]));
@@ -27957,12 +31184,12 @@ You should be redirected to the song at:<br /><br />
         }
     }
 
-    const { button: button$b, label: label$2, div: div$b, p: p$3, a, h2: h2$b, input: input$8, select: select$5, option: option$5 } = HTML;
+    const { button: button$b, label: label$2, div: div$b, p: p$3, a, h2: h2$b, input: input$8, select: select$6, option: option$6 } = HTML;
     class RecordingSetupPrompt {
         constructor(_doc) {
             this._doc = _doc;
-            this._keyboardMode = select$5({ style: "width: 100%;" }, option$5({ value: "useCapsLockForNotes" }, "simple shortcuts, use caps lock to play notes"), option$5({ value: "pressControlForShortcuts" }, "simple notes, press " + EditorConfig.ctrlName + " for shortcuts"));
-            this._keyboardLayout = select$5({ style: "width: 100%;" }, option$5({ value: "wickiHayden" }, "Wicki-Hayden"), option$5({ value: "songScale" }, "selected song scale"), option$5({ value: "pianoAtC" }, "piano starting at C :)"), option$5({ value: "pianoAtA" }, "piano starting at A :("), option$5({ value: "pianoTransposingC" }, "piano transposing C :) to song key"), option$5({ value: "pianoTransposingA" }, "piano transposing A :( to song key"));
+            this._keyboardMode = select$6({ style: "width: 100%;" }, option$6({ value: "useCapsLockForNotes" }, "simple shortcuts, use caps lock to play notes"), option$6({ value: "pressControlForShortcuts" }, "simple notes, press " + EditorConfig.ctrlName + " for shortcuts"));
+            this._keyboardLayout = select$6({ style: "width: 100%;" }, option$6({ value: "wickiHayden" }, "Wicki-Hayden"), option$6({ value: "songScale" }, "selected song scale"), option$6({ value: "pianoAtC" }, "piano starting at C :)"), option$6({ value: "pianoAtA" }, "piano starting at A :("), option$6({ value: "pianoTransposingC" }, "piano transposing C :) to song key"), option$6({ value: "pianoTransposingA" }, "piano transposing A :( to song key"));
             this._keyboardLayoutPreview = div$b({ style: "display: grid; row-gap: 4px; margin: 4px auto; font-size: 10px;" });
             this._enableMidi = input$8({ style: "width: 2em; margin-left: 1em;", type: "checkbox" });
             this._showRecordButton = input$8({ style: "width: 2em; margin-left: 1em;", type: "checkbox" });
@@ -28216,227 +31443,11 @@ You should be redirected to the song at:<br /><br />
         }
     }
 
-    var _a$1;
-    class Localization {
-    }
-    Localization.confirmLabel = "Confirm";
-    Localization.playLabel = "Play";
-    Localization.pauseLabel = "Pause";
-    Localization.recordLabel = "Record";
-    Localization.stopLabel = "Stop";
-    Localization.effectsLabel = "Effects";
-    Localization.envelopesLabel = "Envelopes";
-    Localization.instSettingsLabel = "Instrument Settings";
-    Localization.chorusLabel = "Chorus:";
-    Localization.reverbLabel = "Reverb:";
-    Localization.echoLabel = "Echo:";
-    Localization.echoDelayLabel = "Echo Delay:";
-    Localization.algorithmLabel = "Algorithm:";
-    Localization.instAmountLabel = "Instrument:";
-    Localization.volumeLabel = "Volume:";
-    Localization.panLabel = "Pan:";
-    Localization.panDelayLabel = "Delay:";
-    Localization.waveLabel = "Wave:";
-    Localization.noiseLabel = "Noise:";
-    Localization.transitionLabel = "Transition:";
-    Localization.clicklessLabel = "Clickless:";
-    Localization.simpleLabel = "Simple";
-    Localization.advancedLabel = "Advanced";
-    Localization.EQLabel = "EQ Filt:";
-    Localization.EQTypeLabel = "EQ Filt. Type:";
-    Localization.noteFiltLabel = "Note Filt:";
-    Localization.noteFiltTypeLabel = "Note Filt. Type:";
-    Localization.pwmLabel = "Pulse Width:";
-    Localization.pitchShiftLabel = "Pitch Shift:";
-    Localization.detuneLabel = "Detune:";
-    Localization.distortionLabel = "Distortion:";
-    Localization.chordLabel = "Chords:";
-    Localization.vibratoLabel = "Vibrato:";
-    Localization.aliasingLabel = "Aliasing:";
-    Localization.bitCrushLabel = "Bit Crush:";
-    Localization.freqCrushLabel = "Freq Crush:";
-    Localization.fadeLabel = "Fade:";
-    Localization.unisonLabel = "Unison:";
-    Localization.arpSpeedLabel = "Speed:";
-    Localization.twoFastArpLabel = "Fast Two-Note:";
-    Localization.continueThroughPatternLabel = "‣ In Pattern:";
-    Localization.strumSpeedLabel = "‣ Spd:";
-    Localization.slideSpeedLabel = "‣ Spd:";
-    Localization.arpeggioPatternLabel = "‣ Arp Pattern:";
-    Localization.arpeggioPattern1Label = "Pattern: Normal";
-    Localization.arpeggioPattern2Label = "Pattern: Legacy";
-    Localization.arpeggioPattern3Label = "Pattern: Scramble";
-    Localization.arpeggioPattern4Label = "Pattern: Oscillate";
-    Localization.arpeggioPattern5Label = "Pattern: Escalate";
-    Localization.arpeggioPattern6Label = "Pattern: Shift";
-    Localization.arpeggioPattern7Label = "Pattern: Normal (Bounce)";
-    Localization.arpeggioPattern8Label = "Pattern: Scramble (Bounce)";
-    Localization.arpeggioPattern9Label = "Pattern: Oscillate (Bounce)";
-    Localization.arpeggioPattern10Label = "Pattern: Escalate (Bounce)";
-    Localization.arpeggioPattern11Label = "Pattern: Shift (Bounce)";
-    Localization.vibratoDepthLabel = "Depth:";
-    Localization.vibratoSpeedLabel = "Speed:";
-    Localization.vibratoDelayLabel = "Delay:";
-    Localization.vibratoTypeLabel = "Type:";
-    Localization.sustainLabel = "Sustain:";
-    Localization.filterCutLabel = "Filter Cut:";
-    Localization.filterPeakLabel = "Filter Peak:";
-    Localization.spectrumLabel = "Spectrum:";
-    Localization.harmonicsLabel = "Harmonics:";
-    Localization.feedbackLabel = "Feedback:";
-    Localization.feedbackVolumeLabel = "Fdback Vol:";
-    Localization.instTypeLabel = "Type:";
-    Localization.songScaleLabel = "Scale:";
-    Localization.songKeyLabel = "Key:";
-    Localization.songTempoLabel = "Tempo:";
-    Localization.songRhythmLabel = "Rhythm:";
-    Localization.operFreqLabel = "Freq:";
-    Localization.operVolumeLabel = "Volume:";
-    Localization.operWaveLabel = "Wave:";
-    Localization.modSettingLabel = "Setting:";
-    Localization.modTargetLabel = "Target:";
-    Localization.snapScaleLabel = "Snap Notes to Scale";
-    Localization.detectKeyLabel = "Detect Key";
-    Localization.snapRhythmLabel = "Snap Notes to Rhythm";
-    Localization.fileSettingsLabel = "File/Sharing";
-    Localization.editSettingsLabel = "Edit/Song";
-    Localization.preferenceSettingsLabel = "Preferences";
-    Localization.bitCrushHover = "Bitcrusher Quantization";
-    Localization.freqCrushHover = "Frequency Quantization";
-    Localization.themePromptLabel = "Set Theme";
-    Localization.theme1Label = "Beepbox Dark";
-    Localization.theme2Label = "Beepbox Light";
-    Localization.theme3Label = "Beepbox Competition Dark";
-    Localization.theme4Label = "Jummbox Dark";
-    Localization.theme5Label = "Forest";
-    Localization.theme6Label = "Canyon";
-    Localization.theme7Label = "Midnight";
-    Localization.theme8Label = "Beachcombing";
-    Localization.theme9Label = "Violet Verdant";
-    Localization.theme10Label = "Sunset";
-    Localization.theme11Label = "Autumn";
-    Localization.theme12Label = "Shadowfruit";
-    Localization.theme13Label = "Toxic";
-    Localization.theme14Label = "Roe";
-    Localization.theme15Label = "Moonlight";
-    Localization.theme16Label = "Portal";
-    Localization.theme17Label = "Fusion";
-    Localization.theme18Label = "Inverse";
-    Localization.theme19Label = "Nebula";
-    Localization.theme20Label = "Roe Light";
-    Localization.theme21Label = "Energized";
-    Localization.theme22Label = "Neapolitan";
-    Localization.theme23Label = "Poly";
-    Localization.theme24Label = "Midbox";
-    Localization.theme25Label = "Old Jummbox Dark";
-    Localization.theme26Label = "Mono (Old Poly)";
-    Localization.theme27Label = "Blutonium";
-    const language = (_a$1 = window.localStorage.getItem("language")) !== null && _a$1 !== void 0 ? _a$1 : "english";
-    if (language == "spanish") {
-        Localization.confirmLabel = "Confirmar";
-        Localization.playLabel = "Reproducir";
-        Localization.pauseLabel = "Pausa";
-        Localization.recordLabel = "Grabar";
-        Localization.stopLabel = "Parar";
-        Localization.effectsLabel = "Efectos";
-        Localization.envelopesLabel = "Envolventes";
-        Localization.instSettingsLabel = "Configuración del Instrumento";
-        Localization.chorusLabel = "Coro:";
-        Localization.reverbLabel = "Reverberación:";
-        Localization.echoLabel = "Eco:";
-        Localization.echoDelayLabel = "Retardo de Eco:";
-        Localization.algorithmLabel = "Algoritmo:";
-        Localization.instAmountLabel = "Instrumento:";
-        Localization.volumeLabel = "Volumen:";
-        Localization.panLabel = "Paneo:";
-        Localization.panDelayLabel = "Retardo:";
-        Localization.waveLabel = "Onda:";
-        Localization.noiseLabel = "Ruido:";
-        Localization.transitionLabel = "Transición:";
-        Localization.clicklessLabel = "Sin Clics:";
-        Localization.simpleLabel = "Sencillo";
-        Localization.advancedLabel = "Avanzado";
-        Localization.EQLabel = "Filt. EC:";
-        Localization.EQTypeLabel = "Tipo Filt. EC:";
-        Localization.noteFiltLabel = "Filt. Nota:";
-        Localization.noteFiltTypeLabel = "Tipo Filt. Nota:";
-        Localization.pwmLabel = "Ancho de Pulso:";
-        Localization.pitchShiftLabel = "Cambio de Tono:";
-        Localization.detuneLabel = "Desentonación:";
-        Localization.distortionLabel = "Distorsión:";
-        Localization.chordLabel = "Acordes:";
-        Localization.vibratoLabel = "Vibrato:";
-        Localization.aliasingLabel = "Aliasing:";
-        Localization.bitCrushLabel = "Compr. Bit:";
-        Localization.freqCrushLabel = "Compr. Frec:";
-        Localization.fadeLabel = "Desvanecerse:";
-        Localization.unisonLabel = "Unísono:";
-        Localization.arpSpeedLabel = "Velocidad:";
-        Localization.twoFastArpLabel = "Rapido Dos-Notas:";
-        Localization.vibratoDepthLabel = "Profundidad:";
-        Localization.vibratoSpeedLabel = "Velocidad:";
-        Localization.vibratoDelayLabel = "Retraso:";
-        Localization.vibratoTypeLabel = "Tipo:";
-        Localization.sustainLabel = "Sostener:";
-        Localization.filterCutLabel = "Corte de Filtro:";
-        Localization.filterPeakLabel = "Pico del Filtro:";
-        Localization.spectrumLabel = "Espectro:";
-        Localization.harmonicsLabel = "Armónicos:";
-        Localization.feedbackLabel = "Respuesta:";
-        Localization.feedbackVolumeLabel = "Respue Vol:";
-        Localization.instTypeLabel = "Tipo:";
-        Localization.songScaleLabel = "Escala:";
-        Localization.songKeyLabel = "Tono:";
-        Localization.songTempoLabel = "Tempo:";
-        Localization.songRhythmLabel = "Ritmo:";
-        Localization.operFreqLabel = "Frec:";
-        Localization.operVolumeLabel = "Volumen:";
-        Localization.operWaveLabel = "Onda:";
-        Localization.modSettingLabel = "Config:";
-        Localization.modTargetLabel = "Destino:";
-        Localization.snapScaleLabel = "Ajustar Notas a Escala";
-        Localization.detectKeyLabel = "Buscar Tono";
-        Localization.snapRhythmLabel = "Ajustar notas al Ritmo";
-        Localization.fileSettingsLabel = "Archivos/Compartir";
-        Localization.editSettingsLabel = "Modificar/Canción";
-        Localization.preferenceSettingsLabel = "Preferencias";
-        Localization.bitCrushHover = "Compresión de bits";
-        Localization.freqCrushHover = "Compresión de frecuencias";
-        Localization.themePromptLabel = "Seleccionar Tema";
-        Localization.theme1Label = "Beepbox Oscuro";
-        Localization.theme2Label = "Beepbox Luminoso";
-        Localization.theme3Label = "Beepbox Competición Oscuro";
-        Localization.theme4Label = "Jummbox Oscuro";
-        Localization.theme5Label = "Bosque";
-        Localization.theme6Label = "Cañón";
-        Localization.theme7Label = "Medianoche";
-        Localization.theme8Label = "Paseo por la Playa";
-        Localization.theme9Label = "Violeta Verde";
-        Localization.theme10Label = "Atardecer";
-        Localization.theme11Label = "Otoño";
-        Localization.theme12Label = "Fruta de Sombra";
-        Localization.theme13Label = "Tóxico";
-        Localization.theme14Label = "Corzo";
-        Localization.theme15Label = "Luz de la Luna";
-        Localization.theme16Label = "Portal";
-        Localization.theme17Label = "Fusión";
-        Localization.theme18Label = "Inverso";
-        Localization.theme19Label = "Nebulosa";
-        Localization.theme20Label = "Corzo Luminoso";
-        Localization.theme21Label = "Energizado";
-        Localization.theme22Label = "Napolitano";
-        Localization.theme23Label = "Poly";
-        Localization.theme24Label = "Midbox";
-        Localization.theme25Label = "Jummbox Oscuro Viejo";
-        Localization.theme26Label = "Mono (Poly Viejo)";
-        Localization.theme27Label = "Blutonium";
-    }
-
-    const { button: button$c, div: div$c, h2: h2$c, select: select$6, option: option$6 } = HTML;
+    const { button: button$c, div: div$c, h2: h2$c, select: select$7, option: option$7 } = HTML;
     class ThemePrompt {
         constructor(_doc) {
             this._doc = _doc;
-            this._themeSelect = select$6({ style: "width: 100%;" }, option$6({ value: "dark classic" }, (Localization.theme1Label)), option$6({ value: "light classic" }, (Localization.theme2Label)), option$6({ value: "dark competition" }, (Localization.theme3Label)), option$6({ value: "old jummbox classic" }, (Localization.theme25Label)), option$6({ value: "jummbox classic" }, (Localization.theme4Label)), option$6({ value: "forest" }, (Localization.theme5Label)), option$6({ value: "canyon" }, (Localization.theme6Label)), option$6({ value: "midnight" }, (Localization.theme7Label)), option$6({ value: "beachcombing" }, (Localization.theme8Label)), option$6({ value: "violet verdant" }, (Localization.theme9Label)), option$6({ value: "sunset" }, (Localization.theme10Label)), option$6({ value: "autumn" }, (Localization.theme11Label)), option$6({ value: "fruit" }, (Localization.theme12Label)), option$6({ value: "toxic" }, (Localization.theme13Label)), option$6({ value: "roe" }, (Localization.theme14Label)), option$6({ value: "moonlight" }, (Localization.theme15Label)), option$6({ value: "portal" }, (Localization.theme16Label)), option$6({ value: "fusion" }, (Localization.theme17Label)), option$6({ value: "inverse" }, (Localization.theme18Label)), option$6({ value: "nebula" }, (Localization.theme19Label)), option$6({ value: "roe light" }, (Localization.theme20Label)), option$6({ value: "energized" }, (Localization.theme21Label)), option$6({ value: "neapolitan" }, (Localization.theme22Label)), option$6({ value: "mono" }, (Localization.theme26Label)), option$6({ value: "poly" }, (Localization.theme23Label)), option$6({ value: "blutonium" }, (Localization.theme27Label)), option$6({ value: "midbox" }, (Localization.theme24Label)));
+            this._themeSelect = select$7({ style: "width: 100%;" }, option$7({ value: "dark classic" }, (Localization.theme1Label)), option$7({ value: "light classic" }, (Localization.theme2Label)), option$7({ value: "dark competition" }, (Localization.theme3Label)), option$7({ value: "old jummbox classic" }, (Localization.theme25Label)), option$7({ value: "jummbox classic" }, (Localization.theme4Label)), option$7({ value: "forest" }, (Localization.theme5Label)), option$7({ value: "canyon" }, (Localization.theme6Label)), option$7({ value: "midnight" }, (Localization.theme7Label)), option$7({ value: "beachcombing" }, (Localization.theme8Label)), option$7({ value: "violet verdant" }, (Localization.theme9Label)), option$7({ value: "sunset" }, (Localization.theme10Label)), option$7({ value: "autumn" }, (Localization.theme11Label)), option$7({ value: "fruit" }, (Localization.theme12Label)), option$7({ value: "toxic" }, (Localization.theme13Label)), option$7({ value: "roe" }, (Localization.theme14Label)), option$7({ value: "moonlight" }, (Localization.theme15Label)), option$7({ value: "portal" }, (Localization.theme16Label)), option$7({ value: "fusion" }, (Localization.theme17Label)), option$7({ value: "inverse" }, (Localization.theme18Label)), option$7({ value: "nebula" }, (Localization.theme19Label)), option$7({ value: "roe light" }, (Localization.theme20Label)), option$7({ value: "energized" }, (Localization.theme21Label)), option$7({ value: "neapolitan" }, (Localization.theme22Label)), option$7({ value: "mono" }, (Localization.theme26Label)), option$7({ value: "poly" }, (Localization.theme23Label)), option$7({ value: "blutonium" }, (Localization.theme27Label)), option$7({ value: "midbox" }, (Localization.theme24Label)));
             this._cancelButton = button$c({ class: "cancelButton" });
             this._okayButton = button$c({ class: "okayButton", style: "width:100%;" }, (Localization.confirmLabel));
             this.container = div$c({ class: "prompt noSelection", style: "width: 220px;" }, h2$c((Localization.themePromptLabel)), div$c({ style: "display: flex; flex-direction: row; align-items: center; height: 2em; justify-content: flex-end;" }, div$c({ class: "selectContainer", style: "width: 100%;" }, this._themeSelect)), div$c({ style: "display: flex; flex-direction: row-reverse; justify-content: space-between;" }, this._okayButton), this._cancelButton);
@@ -28853,11 +31864,11 @@ You should be redirected to the song at:<br /><br />
         }
     }
 
-    const { button: button$e, div: div$e, h2: h2$e, select: select$7, option: option$7 } = HTML;
+    const { button: button$e, div: div$e, h2: h2$e, select: select$8, option: option$8 } = HTML;
     class LanguagePrompt {
         constructor(_doc) {
             this._doc = _doc;
-            this._languageSelect = select$7({ style: "width: 100%;" }, option$7({ value: "english" }, "English (Default)"), option$7({ value: "spanish" }, "Español / Spanish"));
+            this._languageSelect = select$8({ style: "width: 100%;" }, option$8({ value: "english" }, "English (Default)"), option$8({ value: "spanish" }, "Español / Spanish"));
             this._cancelButton = button$e({ class: "cancelButton" });
             this._okayButton = button$e({ class: "okayButton", style: "width:100%;" }, "Confirm");
             this.container = div$e({ class: "prompt noSelection", style: "width: 220px;" }, h2$e("Set Language (BETA)"), div$e({ style: "display: flex; flex-direction: row; align-items: center; height: 2em; justify-content: flex-end;" }, div$e({ class: "selectContainer", style: "width: 100%;" }, this._languageSelect)), div$e({ style: "display: flex; flex-direction: row-reverse; justify-content: space-between;" }, this._okayButton), this._cancelButton);
@@ -29419,39 +32430,39 @@ You should be redirected to the song at:<br /><br />
         }
     }
 
-    const { button: button$f, div: div$f, input: input$9, select: select$8, span: span$4, optgroup, option: option$8, canvas } = HTML;
+    const { button: button$f, div: div$f, input: input$9, select: select$9, span: span$4, optgroup, option: option$9, canvas } = HTML;
     function buildOptions(menu, items) {
         for (let index = 0; index < items.length; index++) {
-            menu.appendChild(option$8({ value: index }, items[index]));
+            menu.appendChild(option$9({ value: index }, items[index]));
         }
         return menu;
     }
-    function buildHeaderedOptions(header, menu, items) {
-        menu.appendChild(option$8({ selected: true, disabled: true, value: header }, header));
+    function buildHeaderedOptions$1(header, menu, items) {
+        menu.appendChild(option$9({ selected: true, disabled: true, value: header }, header));
         for (const item of items) {
-            menu.appendChild(option$8({ value: item }, item));
+            menu.appendChild(option$9({ value: item }, item));
         }
         return menu;
     }
     function buildPresetOptions(isNoise, idSet) {
-        const menu = select$8({ id: idSet });
+        const menu = select$9({ id: idSet });
         if (isNoise) {
-            menu.appendChild(option$8({ value: 2 }, EditorConfig.valueToPreset(2).name));
-            menu.appendChild(option$8({ value: 3 }, EditorConfig.valueToPreset(3).name));
-            menu.appendChild(option$8({ value: 4 }, EditorConfig.valueToPreset(4).name));
+            menu.appendChild(option$9({ value: 2 }, EditorConfig.valueToPreset(2).name));
+            menu.appendChild(option$9({ value: 3 }, EditorConfig.valueToPreset(3).name));
+            menu.appendChild(option$9({ value: 4 }, EditorConfig.valueToPreset(4).name));
         }
         else {
-            menu.appendChild(option$8({ value: 0 }, EditorConfig.valueToPreset(0).name));
-            menu.appendChild(option$8({ value: 6 }, EditorConfig.valueToPreset(6).name));
-            menu.appendChild(option$8({ value: 5 }, EditorConfig.valueToPreset(5).name));
-            menu.appendChild(option$8({ value: 7 }, EditorConfig.valueToPreset(7).name));
-            menu.appendChild(option$8({ value: 3 }, EditorConfig.valueToPreset(3).name));
-            menu.appendChild(option$8({ value: 1 }, EditorConfig.valueToPreset(1).name));
-            menu.appendChild(option$8({ value: 8 }, EditorConfig.valueToPreset(8).name));
+            menu.appendChild(option$9({ value: 0 }, EditorConfig.valueToPreset(0).name));
+            menu.appendChild(option$9({ value: 6 }, EditorConfig.valueToPreset(6).name));
+            menu.appendChild(option$9({ value: 5 }, EditorConfig.valueToPreset(5).name));
+            menu.appendChild(option$9({ value: 7 }, EditorConfig.valueToPreset(7).name));
+            menu.appendChild(option$9({ value: 3 }, EditorConfig.valueToPreset(3).name));
+            menu.appendChild(option$9({ value: 1 }, EditorConfig.valueToPreset(1).name));
+            menu.appendChild(option$9({ value: 8 }, EditorConfig.valueToPreset(8).name));
         }
         const randomGroup = optgroup({ label: "Randomize ▾" });
-        randomGroup.appendChild(option$8({ value: "randomPreset" }, "Random Preset"));
-        randomGroup.appendChild(option$8({ value: "randomGenerated" }, "Random Generated"));
+        randomGroup.appendChild(option$9({ value: "randomPreset" }, "Random Preset"));
+        randomGroup.appendChild(option$9({ value: "randomGenerated" }, "Random Generated"));
         menu.appendChild(randomGroup);
         for (let categoryIndex = 1; categoryIndex < EditorConfig.presetCategories.length; categoryIndex++) {
             const category = EditorConfig.presetCategories[categoryIndex];
@@ -29460,7 +32471,7 @@ You should be redirected to the song at:<br /><br />
             for (let presetIndex = 0; presetIndex < category.presets.length; presetIndex++) {
                 const preset = category.presets[presetIndex];
                 if ((preset.isNoise == true) == isNoise) {
-                    group.appendChild(option$8({ value: (categoryIndex << 6) + presetIndex }, preset.name));
+                    group.appendChild(option$9({ value: (categoryIndex << 6) + presetIndex }, preset.name));
                     foundAny = true;
                 }
             }
@@ -29554,6 +32565,7 @@ You should be redirected to the song at:<br /><br />
                     }
                     instrument.customChipWaveIntegral[64] = 0.0;
                 }
+                this._getChange(this.newArray);
             };
             this._onMouseDown = (event) => {
                 this.mouseDown = true;
@@ -29567,7 +32579,8 @@ You should be redirected to the song at:<br /><br />
             this._whenChange = () => {
                 this._change = this._getChange(this.newArray);
                 this._doc.record(this._change);
-                this._change = null;
+                if (!this.mouseDown)
+                    this._change = null;
             };
             canvas.addEventListener("mousemove", this._onMouseMove);
             canvas.addEventListener("mousedown", this._onMouseDown);
@@ -29578,9 +32591,28 @@ You should be redirected to the song at:<br /><br />
             this.lastX = 0;
             this.lastY = 0;
             this.newArray = new Float32Array(64);
+            this.renderedArray = new Float32Array(64);
+            this.renderedColor = "";
             this.redrawCanvas();
         }
         redrawCanvas() {
+            const chipData = this._doc.song.channels[this._doc.channel].instruments[this._doc.getCurrentInstrument()].customChipWave;
+            const renderColor = ColorConfig.getComputedChannelColor(this._doc.song, this._doc.channel).primaryNote;
+            this.renderedArray.set(chipData);
+            let needsRedraw = false;
+            if (renderColor != this.renderedColor) {
+                needsRedraw = true;
+            }
+            else
+                for (let i = 0; i < 64; i++) {
+                    if (chipData[i] != this.renderedArray[i]) {
+                        needsRedraw = true;
+                        i = 64;
+                    }
+                }
+            if (!needsRedraw) {
+                return;
+            }
             var ctx = this.canvas.getContext("2d");
             ctx.fillStyle = ColorConfig.getComputed("--editor-background");
             ctx.fillRect(0, 0, 128, 52);
@@ -29589,9 +32621,9 @@ You should be redirected to the song at:<br /><br />
             ctx.fillStyle = ColorConfig.getComputed("--track-editor-bg-pitch-dim");
             ctx.fillRect(0, 13, 128, 1);
             ctx.fillRect(0, 39, 128, 1);
-            ctx.fillStyle = ColorConfig.getComputedChannelColor(this._doc.song, this._doc.channel).primaryNote;
+            ctx.fillStyle = renderColor;
             for (let x = 0; x < 64; x++) {
-                var y = this._doc.song.channels[this._doc.channel].instruments[this._doc.getCurrentInstrument()].customChipWave[x] + 26;
+                var y = chipData[x] + 26;
                 ctx.fillRect(x * 2, y - 2, 2, 4);
                 this.newArray[x] = y - 26;
             }
@@ -29627,11 +32659,11 @@ You should be redirected to the song at:<br /><br />
             this._defs = SVG.defs({}, this._gradient);
             this._volumeBarContainer = SVG.svg({ style: `touch-action: none; overflow: visible; margin: auto; max-width: 20vw;`, width: "160px", height: "100%", preserveAspectRatio: "none", viewBox: "0 0 160 12" }, this._defs, this._outVolumeBarBg, this._outVolumeBar, this._outVolumeCap);
             this._volumeBarBox = div$f({ class: "playback-volume-bar", style: "height: 12px; align-self: center;" }, this._volumeBarContainer);
-            this._fileMenu = select$8({ style: "width: 100%;" }, option$8({ selected: true, disabled: true, hidden: false }, span$4(Localization.fileSettingsLabel)), option$8({ value: "new" }, "+ New Blank Song"), option$8({ value: "import" }, "↑ Import Song... (" + EditorConfig.ctrlSymbol + "O)"), option$8({ value: "export" }, "↓ Export Song... (" + EditorConfig.ctrlSymbol + "S)"), option$8({ value: "copyUrl" }, "⎘ Copy Song URL"), option$8({ value: "shareUrl" }, "⤳ Share Song URL"), option$8({ value: "shortenUrl" }, "… Shorten Song URL (U)"), option$8({ value: "viewPlayer" }, "▶ View in Song Player (P)"), option$8({ value: "copyEmbed" }, "⎘ Copy HTML Embed Code"), option$8({ value: "songRecovery" }, "⚠ Recover Recent Song..."));
-            this._editMenu = select$8({ style: "width: 100%;" }, option$8({ selected: true, disabled: true, hidden: false }, span$4(Localization.editSettingsLabel)), option$8({ value: "undo" }, "Undo (Z)"), option$8({ value: "redo" }, "Redo (Y)"), option$8({ value: "copy" }, "Copy Pattern (C)"), option$8({ value: "pasteNotes" }, "Paste Pattern Notes (V)"), option$8({ value: "pasteNumbers" }, "Paste Pattern Numbers (" + EditorConfig.ctrlSymbol + "⇧V)"), option$8({ value: "insertBars" }, "Insert Bar (⏎)"), option$8({ value: "deleteBars" }, "Delete Selected Bars (⌫)"), option$8({ value: "insertChannel" }, "Insert Channel (" + EditorConfig.ctrlSymbol + "⏎)"), option$8({ value: "deleteChannel" }, "Delete Selected Channels (" + EditorConfig.ctrlSymbol + "⌫)"), option$8({ value: "selectChannel" }, "Select Channel (⇧A)"), option$8({ value: "selectAll" }, "Select All (A)"), option$8({ value: "duplicatePatterns" }, "Duplicate Reused Patterns (D)"), option$8({ value: "transposeUp" }, "Move Notes Up (+ or ⇧+)"), option$8({ value: "transposeDown" }, "Move Notes Down (- or ⇧-)"), option$8({ value: "moveNotesSideways" }, "Move All Notes Sideways... (W)"), option$8({ value: "beatsPerBar" }, "Change Beats Per Bar... (B)"), option$8({ value: "barCount" }, "Change Song Length... (L)"), option$8({ value: "channelSettings" }, "Channel Settings... (Q)"), option$8({ value: "limiterSettings" }, "Limiter Settings... (⇧L)"));
-            this._optionsMenu = select$8({ style: "width: 100%;" }, option$8({ selected: true, disabled: true, hidden: false }, span$4(Localization.preferenceSettingsLabel)), option$8({ value: "autoPlay" }, "Auto Play on Load"), option$8({ value: "autoFollow" }, "Keep Current Pattern Selected"), option$8({ value: "enableNotePreview" }, "Hear Preview of Added Notes"), option$8({ value: "showLetters" }, "Show Piano Keys"), option$8({ value: "showFifth" }, 'Highlight "Fifth" of Song Key'), option$8({ value: "notesOutsideScale" }, "Allow Adding Notes Not in Scale"), option$8({ value: "setDefaultScale" }, "Use Current Scale as Default"), option$8({ value: "showChannels" }, "Show Notes From All Channels"), option$8({ value: "showScrollBar" }, "Show Octave Scroll Bar"), option$8({ value: "alwaysFineNoteVol" }, "Always Fine Note Volume"), option$8({ value: "enableChannelMuting" }, "Enable Channel Muting"), option$8({ value: "displayBrowserUrl" }, "Display Song Data in URL"), option$8({ value: "displayVolumeBar" }, "Show Playback Volume"), option$8({ value: "showOscilloscope" }, "Show Oscilloscope"), option$8({ value: "language" }, "Set Language..."), option$8({ value: "layout" }, "Set Layout..."), option$8({ value: "colorTheme" }, "Set Theme..."), option$8({ value: "recordingSetup" }, "Set Up Note Recording..."));
-            this._scaleSelect = buildOptions(select$8(), Config.scales.map(scale => scale.name));
-            this._keySelect = buildOptions(select$8(), Config.keys.map(key => key.name).reverse());
+            this._fileMenu = select$9({ style: "width: 100%;" }, option$9({ selected: true, disabled: true, hidden: false }, span$4(Localization.fileSettingsLabel)), option$9({ value: "new" }, "+ New Blank Song"), option$9({ value: "import" }, "↑ Import Song... (" + EditorConfig.ctrlSymbol + "O)"), option$9({ value: "export" }, "↓ Export Song... (" + EditorConfig.ctrlSymbol + "S)"), option$9({ value: "copyUrl" }, "⎘ Copy Song URL"), option$9({ value: "shareUrl" }, "⤳ Share Song URL"), option$9({ value: "shortenUrl" }, "… Shorten Song URL (U)"), option$9({ value: "viewPlayer" }, "▶ View in Song Player (P)"), option$9({ value: "copyEmbed" }, "⎘ Copy HTML Embed Code"), option$9({ value: "songRecovery" }, "⚠ Recover Recent Song..."));
+            this._editMenu = select$9({ style: "width: 100%;" }, option$9({ selected: true, disabled: true, hidden: false }, span$4(Localization.editSettingsLabel)), option$9({ value: "undo" }, "Undo (Z)"), option$9({ value: "redo" }, "Redo (Y)"), option$9({ value: "copy" }, "Copy Pattern (C)"), option$9({ value: "pasteNotes" }, "Paste Pattern Notes (V)"), option$9({ value: "pasteNumbers" }, "Paste Pattern Numbers (" + EditorConfig.ctrlSymbol + "⇧V)"), option$9({ value: "insertBars" }, "Insert Bar (⏎)"), option$9({ value: "deleteBars" }, "Delete Selected Bars (⌫)"), option$9({ value: "insertChannel" }, "Insert Channel (" + EditorConfig.ctrlSymbol + "⏎)"), option$9({ value: "deleteChannel" }, "Delete Selected Channels (" + EditorConfig.ctrlSymbol + "⌫)"), option$9({ value: "selectChannel" }, "Select Channel (⇧A)"), option$9({ value: "selectAll" }, "Select All (A)"), option$9({ value: "duplicatePatterns" }, "Duplicate Reused Patterns (D)"), option$9({ value: "transposeUp" }, "Move Notes Up (+ or ⇧+)"), option$9({ value: "transposeDown" }, "Move Notes Down (- or ⇧-)"), option$9({ value: "moveNotesSideways" }, "Move All Notes Sideways... (W)"), option$9({ value: "beatsPerBar" }, "Change Beats Per Bar... (B)"), option$9({ value: "barCount" }, "Change Song Length... (L)"), option$9({ value: "channelSettings" }, "Channel Settings... (Q)"), option$9({ value: "limiterSettings" }, "Limiter Settings... (⇧L)"));
+            this._optionsMenu = select$9({ style: "width: 100%;" }, option$9({ selected: true, disabled: true, hidden: false }, span$4(Localization.preferenceSettingsLabel)), option$9({ value: "autoPlay" }, "Auto Play on Load"), option$9({ value: "autoFollow" }, "Keep Current Pattern Selected"), option$9({ value: "enableNotePreview" }, "Hear Preview of Added Notes"), option$9({ value: "showLetters" }, "Show Piano Keys"), option$9({ value: "showFifth" }, 'Highlight "Fifth" of Song Key'), option$9({ value: "notesOutsideScale" }, "Allow Adding Notes Not in Scale"), option$9({ value: "setDefaultScale" }, "Use Current Scale as Default"), option$9({ value: "showChannels" }, "Show Notes From All Channels"), option$9({ value: "showScrollBar" }, "Show Octave Scroll Bar"), option$9({ value: "alwaysFineNoteVol" }, "Always Fine Note Volume"), option$9({ value: "enableChannelMuting" }, "Enable Channel Muting"), option$9({ value: "displayBrowserUrl" }, "Display Song Data in URL"), option$9({ value: "displayVolumeBar" }, "Show Playback Volume"), option$9({ value: "showOscilloscope" }, "Show Oscilloscope"), option$9({ value: "language" }, "Set Language..."), option$9({ value: "layout" }, "Set Layout..."), option$9({ value: "colorTheme" }, "Set Theme..."), option$9({ value: "recordingSetup" }, "Set Up Note Recording..."));
+            this._scaleSelect = buildOptions(select$9(), Config.scales.map(scale => scale.name));
+            this._keySelect = buildOptions(select$9(), Config.keys.map(key => key.name).reverse());
             this._tempoSlider = new Slider(input$9({ style: "margin: 0; vertical-align: middle;", type: "range", min: "30", max: "320", value: "160", step: "1" }), this._doc, (oldValue, newValue) => new ChangeTempo(this._doc, oldValue, newValue), false);
             this._tempoStepper = input$9({ style: "width: 4em; font-size: 80%; margin-left: 0.4em; vertical-align: middle;", type: "number", step: "1" });
             this._chorusSlider = new Slider(input$9({ style: "margin: 0;", type: "range", min: "0", max: Config.chorusRange - 1, value: "0", step: "1" }), this._doc, (oldValue, newValue) => new ChangeChorus(this._doc, oldValue, newValue), false);
@@ -29642,10 +32674,10 @@ You should be redirected to the song at:<br /><br />
             this._echoSustainRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("echoSustain") }, span$4(Localization.echoLabel)), this._echoSustainSlider.container);
             this._echoDelaySlider = new Slider(input$9({ style: "margin: 0;", type: "range", min: "0", max: Config.echoDelayRange - 1, value: "0", step: "1" }), this._doc, (oldValue, newValue) => new ChangeEchoDelay(this._doc, oldValue, newValue), false);
             this._echoDelayRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("echoDelay") }, span$4(Localization.echoDelayLabel)), this._echoDelaySlider.container);
-            this._rhythmSelect = buildOptions(select$8(), Config.rhythms.map(rhythm => rhythm.name));
+            this._rhythmSelect = buildOptions(select$9(), Config.rhythms.map(rhythm => rhythm.name));
             this._pitchedPresetSelect = buildPresetOptions(false, "pitchPresetSelect");
             this._drumPresetSelect = buildPresetOptions(true, "drumPresetSelect");
-            this._algorithmSelect = buildOptions(select$8(), Config.algorithms.map(algorithm => algorithm.name));
+            this._algorithmSelect = buildOptions(select$9(), Config.algorithms.map(algorithm => algorithm.name));
             this._algorithmSelectRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("algorithm") }, span$4(Localization.algorithmLabel)), div$f({ class: "selectContainer" }, this._algorithmSelect));
             this._instrumentButtons = [];
             this._instrumentAddButton = button$f({ type: "button", class: "add-instrument last-button" });
@@ -29663,13 +32695,13 @@ You should be redirected to the song at:<br /><br />
             this._panDelaySlider = new Slider(input$9({ style: "margin: 0;", type: "range", min: "0", max: Config.modulators.dictionary["pan delay"].maxRawVol, value: "0", step: "1" }), this._doc, (oldValue, newValue) => new ChangePanDelay(this._doc, oldValue, newValue), false);
             this._panDelayRow = div$f({ class: "selectRow" }, span$4({ class: "tip", style: "margin-left:10px;", onclick: () => this._openPrompt("panDelay") }, span$4(Localization.panDelayLabel)), this._panDelaySlider.container);
             this._panDropdownGroup = div$f({ class: "editor-controls", style: "display: none;" }, this._panDelayRow);
-            this._chipWaveSelect = buildOptions(select$8(), Config.chipWaves.map(wave => wave.name));
-            this._chipNoiseSelect = buildOptions(select$8(), Config.chipNoises.map(wave => wave.name));
+            this._chipWaveSelect = buildOptions(select$9(), Config.chipWaves.map(wave => wave.name));
+            this._chipNoiseSelect = buildOptions(select$9(), Config.chipNoises.map(wave => wave.name));
             this._chipWaveSelectRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("chipWave") }, span$4(Localization.waveLabel)), div$f({ class: "selectContainer" }, this._chipWaveSelect));
             this._chipNoiseSelectRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("chipNoise") }, span$4(Localization.noiseLabel)), div$f({ class: "selectContainer" }, this._chipNoiseSelect));
             this._fadeInOutEditor = new FadeInOutEditor(this._doc);
             this._fadeInOutRow = div$f({ class: "selectRow" }, span$4({ style: "font-size: smaller;", class: "tip", onclick: () => this._openPrompt("fadeInOut") }, span$4(Localization.fadeLabel)), this._fadeInOutEditor.container);
-            this._transitionSelect = buildOptions(select$8(), Config.transitions.map(transition => transition.name));
+            this._transitionSelect = buildOptions(select$9(), Config.transitions.map(transition => transition.name));
             this._transitionDropdown = button$f({ style: "margin-left:0em; height:1.5em; width: 10px; padding: 0px; font-size: 8px;", onclick: () => this._toggleDropdownMenu(3) }, "▼");
             this._transitionRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("transition") }, span$4(Localization.transitionLabel)), this._transitionDropdown, div$f({ class: "selectContainer", style: "width: 52.5%;" }, this._transitionSelect));
             this._slideSpeedDisplay = span$4({ style: `color: ${ColorConfig.secondaryText}; font-size: 11px; text-overflow: clip;`, class: "tip", onclick: () => this._openPrompt("tk") }, "1 tk");
@@ -29680,7 +32712,7 @@ You should be redirected to the song at:<br /><br />
             this._continueThruPatternBox = input$9({ type: "checkbox", style: "width: 1em; padding: 0; margin-right: 4em;" });
             this._continueThruPatternRow = div$f({ class: "selectRow dropFader" }, span$4({ class: "tip", style: "margin-left:4px;", onclick: () => this._openPrompt("continueThruPattern") }, span$4(Localization.continueThroughPatternLabel)), this._continueThruPatternBox);
             this._transitionDropdownGroup = div$f({ class: "editor-controls", style: "display: none;" }, this._slideSpeedRow, this._clicklessTransitionRow, this._continueThruPatternRow);
-            this._effectsSelect = select$8(option$8({ selected: true, disabled: true, hidden: false }));
+            this._effectsSelect = select$9(option$9({ selected: true, disabled: true, hidden: false }));
             this._eqFilterSimpleButton = button$f({ style: "font-size: x-small; width: 50%; height: 40%", class: "no-underline", onclick: () => this._switchEQFilterType(true) }, span$4(Localization.simpleLabel));
             this._eqFilterAdvancedButton = button$f({ style: "font-size: x-small; width: 50%; height: 40%", class: "last-button no-underline", onclick: () => this._switchEQFilterType(false) }, span$4(Localization.advancedLabel));
             this._eqFilterTypeRow = div$f({ class: "selectRow", style: "padding-top: 4px; margin-bottom: 0px;" }, span$4({ style: "font-size: x-small;", class: "tip", onclick: () => this._openPrompt("filterType") }, span$4(Localization.EQTypeLabel)), div$f({ class: "instrument-bar" }, this._eqFilterSimpleButton, this._eqFilterAdvancedButton));
@@ -29721,9 +32753,9 @@ You should be redirected to the song at:<br /><br />
             this._bitcrusherFreqRow = div$f({ class: "selectRow" }, span$4({ class: "tip", title: (Localization.freqCrushHover), onclick: () => this._openPrompt("bitcrusherFreq") }, span$4(Localization.freqCrushLabel)), this._bitcrusherFreqSlider.container);
             this._stringSustainSlider = new Slider(input$9({ style: "margin: 0;", type: "range", min: "0", max: Config.stringSustainRange - 1, value: "0", step: "1" }), this._doc, (oldValue, newValue) => new ChangeStringSustain(this._doc, oldValue, newValue), false);
             this._stringSustainRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("stringSustain") }, span$4(Localization.sustainLabel)), this._stringSustainSlider.container);
-            this._unisonSelect = buildOptions(select$8(), Config.unisons.map(unison => unison.name));
+            this._unisonSelect = buildOptions(select$9(), Config.unisons.map(unison => unison.name));
             this._unisonSelectRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("unison") }, span$4(Localization.unisonLabel)), div$f({ class: "selectContainer" }, this._unisonSelect));
-            this._chordSelect = buildOptions(select$8(), Config.chords.map(chord => chord.name));
+            this._chordSelect = buildOptions(select$9(), Config.chords.map(chord => chord.name));
             this._chordDropdown = button$f({ style: "margin-left:0em; height:1.5em; width: 10px; padding: 0px; font-size: 8px;", onclick: () => this._toggleDropdownMenu(2) }, "▼");
             this._chordDropdown2 = button$f({ style: "margin-left:0em; height:1.5em; width: 10px; padding: 0px; font-size: 8px;", onclick: () => this._toggleDropdownMenu(5) }, "▼");
             this._chordSelectRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("chords") }, span$4(Localization.chordLabel)), this._chordDropdown, this._chordDropdown2, div$f({ class: "selectContainer" }, this._chordSelect));
@@ -29736,7 +32768,7 @@ You should be redirected to the song at:<br /><br />
             this._twoNoteArpBox = input$9({ type: "checkbox", style: "width: 1em; padding: 0; margin-right: 4em;" });
             this._twoNoteArpRow = div$f({ class: "selectRow dropFader" }, span$4({ class: "tip", style: "margin-left:4px; font-size: 11px;", onclick: () => this._openPrompt("twoNoteArpeggio") }, span$4(Localization.twoFastArpLabel)), this._twoNoteArpBox);
             this._arpeggioPatternSelectedText = span$4({ style: `color: ${ColorConfig.getChannelColor(this._doc.song, this._doc.channel)}; margin-bottom: 0px;` }, Localization.arpeggioPattern1Label);
-            this._arpeggioPatternSelect = buildOptions(select$8(), [
+            this._arpeggioPatternSelect = buildOptions(select$9(), [
                 "1 2 3 4 5 6 7 8 9",
                 "1 2 3) 4 5 6 7 8 9",
                 "1 2 1 3 4 5 4 6 7 8 7 9",
@@ -29752,7 +32784,7 @@ You should be redirected to the song at:<br /><br />
             this._arpeggioPatternRow = div$f({ class: "selectRow dropFader" }, span$4({ class: "tip", style: "margin-left:4px; font-size: 12px;", onclick: () => this._openPrompt("arpeggioPattern") }, Localization.arpeggioPatternLabel), this._arpeggioPatternSelect);
             this._chordDropdownGroup = div$f({ class: "editor-controls", style: "display: none;" }, this._arpeggioSpeedRow, this._twoNoteArpRow, this._arpeggioPatternSelectedText, this._arpeggioPatternRow);
             this._strumDropdownGroup = div$f({ class: "editor-controls", style: "display: none;" }, this._strumSpeedRow);
-            this._vibratoSelect = buildOptions(select$8(), Config.vibratos.map(vibrato => vibrato.name));
+            this._vibratoSelect = buildOptions(select$9(), Config.vibratos.map(vibrato => vibrato.name));
             this._vibratoDropdown = button$f({ style: "margin-left:0em; height:1.5em; width: 10px; padding: 0px; font-size: 8px;", onclick: () => this._toggleDropdownMenu(0) }, "▼");
             this._vibratoSelectRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("vibrato") }, span$4(Localization.vibratoLabel)), this._vibratoDropdown, div$f({ class: "selectContainer", style: "width: 61.5%;" }, this._vibratoSelect));
             this._vibratoDepthSlider = new Slider(input$9({ style: "margin: 0;", type: "range", min: "0", max: Config.modulators.dictionary["vibrato depth"].maxRawVol, value: "0", step: "1" }), this._doc, (oldValue, newValue) => new ChangeVibratoDepth(this._doc, oldValue, newValue), false);
@@ -29761,11 +32793,11 @@ You should be redirected to the song at:<br /><br />
             this._vibratoSpeedRow = div$f({ class: "selectRow" }, span$4({ class: "tip", style: "margin-left:10px; font-size: smaller;", onclick: () => this._openPrompt("vibratoSpeed") }, span$4(Localization.vibratoSpeedLabel)), this._vibratoSpeedSlider.container);
             this._vibratoDelaySlider = new Slider(input$9({ style: "margin: 0;", type: "range", min: "0", max: Config.modulators.dictionary["vibrato delay"].maxRawVol, value: "0", step: "1" }), this._doc, (oldValue, newValue) => new ChangeVibratoDelay(this._doc, oldValue, newValue), false);
             this._vibratoDelayRow = div$f({ class: "selectRow" }, span$4({ class: "tip", style: "margin-left:10px;", onclick: () => this._openPrompt("vibratoDelay") }, span$4(Localization.vibratoDelayLabel)), this._vibratoDelaySlider.container);
-            this._vibratoTypeSelect = buildOptions(select$8(), Config.vibratoTypes.map(vibrato => vibrato.name));
+            this._vibratoTypeSelect = buildOptions(select$9(), Config.vibratoTypes.map(vibrato => vibrato.name));
             this._vibratoTypeSelectRow = div$f({ class: "selectRow" }, span$4({ class: "tip", style: "margin-left:10px;", onclick: () => this._openPrompt("vibratoType") }, span$4(Localization.vibratoTypeLabel)), div$f({ class: "selectContainer", style: "width: 61.5%;" }, this._vibratoTypeSelect));
             this._vibratoDropdownGroup = div$f({ class: "editor-controls", style: "display: none;" }, this._vibratoDepthRow, this._vibratoSpeedRow, this._vibratoDelayRow, this._vibratoTypeSelectRow);
             this._phaseModGroup = div$f({ class: "editor-controls" });
-            this._feedbackTypeSelect = buildOptions(select$8(), Config.feedbacks.map(feedback => feedback.name));
+            this._feedbackTypeSelect = buildOptions(select$9(), Config.feedbacks.map(feedback => feedback.name));
             this._feedbackRow1 = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("feedbackType") }, span$4(Localization.feedbackLabel)), div$f({ class: "selectContainer" }, this._feedbackTypeSelect));
             this._spectrumEditor = new SpectrumEditor(this._doc, null);
             this._spectrumRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("spectrum") }, span$4(Localization.spectrumLabel)), this._spectrumEditor.container);
@@ -29792,11 +32824,26 @@ You should be redirected to the song at:<br /><br />
             this._oscilloscopeScaleSlider = new Slider(input$9({ style: "width: 120px; flex-grow: 1; margin: 0;", type: "range", min: "0.25", max: "5", value: "1", step: "0.25" }), this._doc, null, false);
             this._oscilloscopeScaleRow = div$f({ class: "selectRow" }, span$4({ class: "tip", onclick: () => this._openPrompt("oscilloscopeScaling") }, "Scale:"), this._oscilloscopeScaleSlider.container);
             this._customWaveDrawCanvas = new CustomChipCanvas(canvas({ width: 128, height: 52, style: "border:2px solid " + ColorConfig.uiWidgetBackground, id: "customWaveDrawCanvas" }), this._doc, (newArray) => new ChangeCustomWave(this._doc, newArray));
-            this._customWavePresetDrop = buildHeaderedOptions("Load Preset", select$8({ style: "width: 50%; height:1.5em; text-align: center; text-align-last: center;" }), Config.chipWaves.map(wave => wave.name));
+            this._customWavePresetDrop = buildHeaderedOptions$1(Localization.loadPresetLabel, select$9({ style: "width: 50%; height:1.5em; text-align: center; text-align-last: center;" }), Config.chipWaves.map(wave => wave.name));
             this._customWaveZoom = button$f({ style: "margin-left:0.5em; height:1.5em; max-width: 20px;", onclick: () => this._openPrompt("customChipSettings") }, "+");
-            this._customWaveDraw = div$f({ style: "height:80px; margin-top:10px; margin-bottom:5px" }, [
+            this._customWaveCopy = button$f({ style: "width:58px; height:1.5em; text-align: right;", class: "copyButton" }, [
+                Localization.copyLabel,
+                SVG.svg({ style: "flex-shrink: 0; position: absolute; left: 0; top: 50%; margin-top: -0.75em; pointer-events: none;", width: "1.5em", height: "1.5em", viewBox: "-5 -21 26 26" }, [
+                    SVG.path({ d: "M 0 -15 L 1 -15 L 1 0 L 13 0 L 13 1 L 0 1 L 0 -15 z M 2 -1 L 2 -17 L 10 -17 L 14 -13 L 14 -1 z M 3 -2 L 13 -2 L 13 -12 L 9 -12 L 9 -16 L 3 -16 z", fill: "currentColor" }),
+                ]),
+            ]);
+            this._customWavePaste = button$f({ style: "width:58px; height:1.5em; text-align: right;", class: "pasteButton" }, [
+                Localization.pasteLabel,
+                SVG.svg({ style: "flex-shrink: 0; position: absolute; left: 0; top: 50%; margin-top: -0.75em; pointer-events: none;", width: "1.5em", height: "1.5em", viewBox: "0 0 26 26" }, [
+                    SVG.path({ d: "M 8 18 L 6 18 L 6 5 L 17 5 L 17 7 M 9 8 L 16 8 L 20 12 L 20 22 L 9 22 z", stroke: "currentColor", fill: "none" }),
+                    SVG.path({ d: "M 9 3 L 14 3 L 14 6 L 9 6 L 9 3 z M 16 8 L 20 12 L 16 12 L 16 8 z", fill: "currentColor", }),
+                ]),
+            ]);
+            this._customWaveCopyPasteContainer = div$f({ class: "selectRow", style: "width: 124px; align-content: space-between;" }, this._customWaveCopy, this._customWavePaste);
+            this._customWaveDraw = div$f({ style: "height:80px; margin-top:10px; margin-bottom:25px;" }, [
                 div$f({ style: "height:54px; display:flex; justify-content:center;" }, [this._customWaveDrawCanvas.canvas]),
                 div$f({ style: "margin-top:5px; display:flex; justify-content:center;" }, [this._customWavePresetDrop, this._customWaveZoom]),
+                div$f({ style: "margin-top:1px; display:flex; justify-content:center;" }, [this._customWaveCopyPasteContainer]),
             ]);
             this._songTitleInputBox = new InputBox(input$9({ style: "font-weight:bold; border:none; width: 100%; background-color:${ColorConfig.editorBackground}; color:${ColorConfig.primaryText}; text-align:center", maxlength: "30", type: "text", value: EditorConfig.versionDisplayName }), this._doc, (oldValue, newValue) => new ChangeSongTitle(this._doc, oldValue, newValue));
             this._songSubtitleInputBox = new InputBox(input$9({ style: "font-weight:bold; font-size:12px; border:none; width: 90%; background-color:${ColorConfig.editorBackground}; color: " + ColorConfig.secondaryText + " text-align:center", maxlength: "30", type: "text", }), this._doc, (oldValue, newValue) => new ChangeSongSubtitle(this._doc, oldValue, newValue));
@@ -29966,7 +33013,7 @@ You should be redirected to the song at:<br /><br />
                 const activeElement = document.activeElement;
                 const colors = ColorConfig.getChannelColor(this._doc.song, this._doc.channel);
                 for (let i = this._effectsSelect.childElementCount - 1; i < Config.effectOrder.length; i++) {
-                    this._effectsSelect.appendChild(option$8({ value: i }));
+                    this._effectsSelect.appendChild(option$9({ value: i }));
                 }
                 this._effectsSelect.selectedIndex = -1;
                 for (let i = 0; i < Config.effectOrder.length; i++) {
@@ -30282,7 +33329,7 @@ You should be redirected to the song at:<br /><br />
                     else {
                         this._reverbRow.style.display = "none";
                     }
-                    if (instrument.type == 0 || instrument.type == 8 || instrument.type == 5 || instrument.type == 7 || instrument.type == 3 || instrument.type == 6 || instrument.type == 1) {
+                    if (instrument.type == 0 || instrument.type == 8 || instrument.type == 5 || instrument.type == 7) {
                         this._unisonSelectRow.style.display = "";
                         setSelectedValue(this._unisonSelect, instrument.unison);
                     }
@@ -30668,12 +33715,12 @@ You should be redirected to the song at:<br /><br />
                             }
                             buildOptions(this._modSetBoxes[mod], settingList);
                             if (unusedSettingList.length > 0) {
-                                this._modSetBoxes[mod].appendChild(option$8({ selected: false, disabled: true, value: "Add Effect" }, "Add Effect"));
+                                this._modSetBoxes[mod].appendChild(option$9({ selected: false, disabled: true, value: "Add Effect" }, "Add Effect"));
                                 buildOptions(this._modSetBoxes[mod], unusedSettingList);
                             }
                             let setIndex = settingList.indexOf(Config.modulators[instrument.modulators[mod]].name);
                             if (setIndex == -1) {
-                                this._modSetBoxes[mod].insertBefore(option$8({ value: Config.modulators[instrument.modulators[mod]].name, style: "color: red;" }, Config.modulators[instrument.modulators[mod]].name), this._modSetBoxes[mod].children[0]);
+                                this._modSetBoxes[mod].insertBefore(option$9({ value: Config.modulators[instrument.modulators[mod]].name, style: "color: red;" }, Config.modulators[instrument.modulators[mod]].name), this._modSetBoxes[mod].children[0]);
                                 this._modSetBoxes[mod].selectedIndex = 0;
                                 this._whenSetModSetting(mod, true);
                             }
@@ -30760,7 +33807,7 @@ You should be redirected to the song at:<br /><br />
                                     : "dot " + (Math.floor((instrument.modFilterTypes[mod] - 1) / 2) + 1) + " x";
                                 if (instrument.modFilterTypes[mod] == 0)
                                     useName = "morph";
-                                this._modFilterBoxes[mod].insertBefore(option$8({ value: useName, style: "color: red;" }, useName), this._modFilterBoxes[mod].children[0]);
+                                this._modFilterBoxes[mod].insertBefore(option$9({ value: useName, style: "color: red;" }, useName), this._modFilterBoxes[mod].children[0]);
                                 this._modFilterBoxes[mod].selectedIndex = 0;
                             }
                             else {
@@ -30921,7 +33968,7 @@ You should be redirected to the song at:<br /><br />
                     if (this.prompt instanceof CustomChipPrompt || this.prompt instanceof LimiterPrompt || this.prompt instanceof CustomFilterPrompt) {
                         this.prompt.whenKeyPressed(event);
                     }
-                    if (event.keyCode == 27) {
+                    if (event.keyCode == 27 && !(this.prompt instanceof CustomChipPrompt)) {
                         this._doc.undo();
                     }
                     return;
@@ -31519,6 +34566,15 @@ You should be redirected to the song at:<br /><br />
                     this._doc.performance.record();
                 }
             };
+            this._copyCustomWave = () => {
+                let instrument = this._doc.song.channels[this._doc.channel].instruments[this._doc.getCurrentInstrument()];
+                const chipCopy = instrument.customChipWave;
+                window.localStorage.setItem("chipCopy", JSON.stringify(Array.from(chipCopy)));
+            };
+            this._pasteCustomWave = () => {
+                const storedChipWave = JSON.parse(String(window.localStorage.getItem("chipCopy")));
+                this._doc.record(new ChangeCustomWave(this._doc, storedChipWave));
+            };
             this._animate = () => {
                 this._modSliderUpdate();
                 if (this._doc.prefs.displayVolumeBar) {
@@ -31948,7 +35004,6 @@ You should be redirected to the song at:<br /><br />
                     this._customWaveDrawCanvas.newArray[i] = customWaveArray[i];
                 }
                 this._doc.record(new ChangeCustomWave(this._doc, customWaveArray));
-                this._doc.record(new ChangeVolume(this._doc, +this._instrumentVolumeSlider.input.value, -Config.volumeRange / 2 + Math.round(Math.sqrt(Config.chipWaves[index].expression) * Config.volumeRange / 2)));
                 this._customWavePresetDrop.selectedIndex = 0;
                 this._doc.notifier.changed();
                 this._doc.prefs.save();
@@ -31961,19 +35016,19 @@ You should be redirected to the song at:<br /><br />
             if (!("share" in navigator)) {
                 this._fileMenu.removeChild(this._fileMenu.querySelector("[value='shareUrl']"));
             }
-            this._scaleSelect.appendChild(optgroup({ label: "Edit" }, option$8({ value: "forceScale" }, span$4(Localization.snapScaleLabel))));
-            this._keySelect.appendChild(optgroup({ label: "Edit" }, option$8({ value: "detectKey" }, span$4(Localization.detectKeyLabel))));
-            this._rhythmSelect.appendChild(optgroup({ label: "Edit" }, option$8({ value: "forceRhythm" }, span$4(Localization.snapRhythmLabel))));
-            this._vibratoSelect.appendChild(option$8({ hidden: true, value: 5 }, "custom"));
+            this._scaleSelect.appendChild(optgroup({ label: "Edit" }, option$9({ value: "forceScale" }, span$4(Localization.snapScaleLabel))));
+            this._keySelect.appendChild(optgroup({ label: "Edit" }, option$9({ value: "detectKey" }, span$4(Localization.detectKeyLabel))));
+            this._rhythmSelect.appendChild(optgroup({ label: "Edit" }, option$9({ value: "forceRhythm" }, span$4(Localization.snapRhythmLabel))));
+            this._vibratoSelect.appendChild(option$9({ hidden: true, value: 5 }, "custom"));
             this._showModSliders = new Array(Config.modulators.length);
             this._modSliderValues = new Array(Config.modulators.length);
             this._phaseModGroup.appendChild(div$f({ class: "selectRow", style: `color: ${ColorConfig.secondaryText}; height: 1em; margin-top: 0.5em;` }, div$f({ style: "margin-right: .1em; visibility: hidden;" }, 1 + "."), div$f({ style: "width: 3em; margin-right: .3em;", class: "tip", onclick: () => this._openPrompt("operatorFrequency") }, span$4(Localization.operFreqLabel)), div$f({ class: "tip", onclick: () => this._openPrompt("operatorVolume") }, span$4(Localization.operVolumeLabel))));
             for (let i = 0; i < Config.operatorCount; i++) {
                 const operatorIndex = i;
                 const operatorNumber = div$f({ style: "margin-right: 0px; color: " + ColorConfig.secondaryText + ";" }, i + 1 + "");
-                const frequencySelect = buildOptions(select$8({ style: "width: 100%;", title: "Frequency" }), Config.operatorFrequencies.map(freq => freq.name));
+                const frequencySelect = buildOptions(select$9({ style: "width: 100%;", title: "Frequency" }), Config.operatorFrequencies.map(freq => freq.name));
                 const amplitudeSlider = new Slider(input$9({ type: "range", min: "0", max: Config.operatorAmplitudeMax, value: "0", step: "1", title: "Volume" }), this._doc, (oldValue, newValue) => new ChangeOperatorAmplitude(this._doc, operatorIndex, oldValue, newValue), false);
-                const waveformSelect = buildOptions(select$8({ style: "width: 100%;", title: "Waveform" }), Config.operatorWaves.map(wave => wave.name));
+                const waveformSelect = buildOptions(select$9({ style: "width: 100%;", title: "Waveform" }), Config.operatorWaves.map(wave => wave.name));
                 const waveformDropdown = button$f({ style: "margin-left:0em; margin-right: 2px; height:1.5em; width: 8px; max-width: 10px; padding: 0px; font-size: 8px;", onclick: () => this._toggleDropdownMenu(4, i) }, "▼");
                 const waveformDropdownHint = span$4({ class: "tip", style: "margin-left: 10px;", onclick: () => this._openPrompt("operatorWaveform") }, span$4(Localization.operWaveLabel));
                 const waveformPulsewidthSlider = new Slider(input$9({ style: "margin-left: 10px; width: 85%;", type: "range", min: "0", max: Config.pwmOperatorWaves.length - 1, value: "0", step: "1", title: "Pulse Width" }), this._doc, (oldValue, newValue) => new ChangeOperatorPulseWidth(this._doc, operatorIndex, oldValue, newValue), true);
@@ -32005,7 +35060,7 @@ You should be redirected to the song at:<br /><br />
                 const spectrumEditor = new SpectrumEditor(this._doc, drumIndex);
                 spectrumEditor.container.addEventListener("mousedown", this.refocusStage);
                 this._drumsetSpectrumEditors[i] = spectrumEditor;
-                const envelopeSelect = buildOptions(select$8({ style: "width: 100%;", title: "Filter Envelope" }), Config.envelopes.map(envelope => envelope.name));
+                const envelopeSelect = buildOptions(select$9({ style: "width: 100%;", title: "Filter Envelope" }), Config.envelopes.map(envelope => envelope.name));
                 this._drumsetEnvelopeSelects[i] = envelopeSelect;
                 envelopeSelect.addEventListener("change", () => {
                     this._doc.record(new ChangeDrumsetEnvelope(this._doc, drumIndex, envelopeSelect.selectedIndex));
@@ -32022,11 +35077,11 @@ You should be redirected to the song at:<br /><br />
             this._modFilterBoxes = [];
             this._modTargetIndicators = [];
             for (let mod = 0; mod < Config.modCount; mod++) {
-                let modChannelBox = select$8({ style: "width: 100%; color: currentColor; text-overflow:ellipsis;" });
-                let modInstrumentBox = select$8({ style: "width: 100%; color: currentColor;" });
+                let modChannelBox = select$9({ style: "width: 100%; color: currentColor; text-overflow:ellipsis;" });
+                let modInstrumentBox = select$9({ style: "width: 100%; color: currentColor;" });
                 let modNameRow = div$f({ class: "operatorRow", style: "height: 1em; margin-bottom: 0.65em;" }, div$f({ class: "tip", style: "width: 10%; max-width: 5.4em;", id: "modChannelText" + mod, onclick: () => this._openPrompt("modChannel") }, "Ch:"), div$f({ class: "selectContainer", style: 'width: 35%;' }, modChannelBox), div$f({ class: "tip", style: "width: 1.2em; margin-left: 0.8em;", id: "modInstrumentText" + mod, onclick: () => this._openPrompt("modInstrument") }, "Ins:"), div$f({ class: "selectContainer", style: "width: 10%;" }, modInstrumentBox));
-                let modSetBox = select$8();
-                let modFilterBox = select$8();
+                let modSetBox = select$9();
+                let modFilterBox = select$9();
                 let modSetRow = div$f({ class: "selectRow", id: "modSettingText" + mod, style: "margin-bottom: 0.9em; color: currentColor;" }, span$4({ class: "tip", onclick: () => this._openPrompt("modSet") }, span$4(Localization.modSettingLabel)), span$4({ class: "tip", style: "font-size:x-small;", onclick: () => this._openPrompt("modSetInfo" + mod) }, "?"), div$f({ class: "selectContainer" }, modSetBox));
                 let modFilterRow = div$f({ class: "selectRow", id: "modFilterText" + mod, style: "margin-bottom: 0.9em; color: currentColor;" }, span$4({ class: "tip", onclick: () => this._openPrompt("modFilter" + mod) }, span$4(Localization.modTargetLabel)), div$f({ class: "selectContainer" }, modFilterBox));
                 let modTarget = SVG.svg({ style: "transform: translate(0px, 1px);", width: "1.5em", height: "1em", viewBox: "0 0 200 200" }, [
@@ -32075,6 +35130,8 @@ You should be redirected to the song at:<br /><br />
             this._pauseButton.addEventListener("click", this.togglePlay);
             this._recordButton.addEventListener("click", this._toggleRecord);
             this._stopButton.addEventListener("click", this._toggleRecord);
+            this._customWaveCopy.addEventListener("click", this._copyCustomWave);
+            this._customWavePaste.addEventListener("click", this._pasteCustomWave);
             this._recordButton.addEventListener("contextmenu", (event) => {
                 if (event.ctrlKey) {
                     event.preventDefault();
