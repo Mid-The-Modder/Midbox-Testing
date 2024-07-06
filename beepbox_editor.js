@@ -23038,6 +23038,165 @@ li.select2-results__option[role=group] > strong:hover {
                     }
                 }
                 else if (this.drawMode == 3) {
+                    switch (this.selectionModeStep) {
+                        case 0:
+                            {
+                                this.selectionModeStep = 1;
+                                const newSelectionStart = Math.min(63, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                const newSelectionEnd = newSelectionStart + 1;
+                                this._selectionBounds = {
+                                    start: newSelectionStart,
+                                    end: newSelectionEnd,
+                                };
+                                this._tentativeSelectionBounds = {
+                                    start: newSelectionStart,
+                                    end: newSelectionEnd,
+                                };
+                            }
+                            break;
+                        case 1:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 2:
+                            {
+                                const bounds = this._selectionBounds;
+                                const selectionBoxWidth = (bounds.end - bounds.start) / 64 * this._editorWidth;
+                                const selectionBoxX0 = bounds.start / 64 * this._editorWidth;
+                                const selectionBoxX1 = selectionBoxX0 + selectionBoxWidth;
+                                const selectionBoxStartX0 = selectionBoxX0 - this._selectionEdgeMargin;
+                                const selectionBoxStartX1 = selectionBoxX0 + this._selectionEdgeMargin;
+                                const selectionBoxEndX0 = selectionBoxX1 - this._selectionEdgeMargin;
+                                const selectionBoxEndX1 = selectionBoxX1 + this._selectionEdgeMargin;
+                                const mouseIsInsideSelection = (this._mouseX >= selectionBoxX0
+                                    && this._mouseX <= selectionBoxX1
+                                    && this._mouseY >= 0
+                                    && this._mouseY <= this._editorHeight);
+                                const mouseIsAtStartOfSelection = (this._mouseX >= selectionBoxStartX0
+                                    && this._mouseX <= selectionBoxStartX1
+                                    && this._mouseY >= 0
+                                    && this._mouseY <= this._editorHeight);
+                                const mouseIsAtEndOfSelection = (this._mouseX >= selectionBoxEndX0
+                                    && this._mouseX <= selectionBoxEndX1
+                                    && this._mouseY >= 0
+                                    && this._mouseY <= this._editorHeight);
+                                if (mouseIsAtStartOfSelection) {
+                                    if (this.selectionDragEvent == 1) {
+                                        if (this._floatingSelection == null) {
+                                            for (let i = 0; i < 64; i++)
+                                                this.temporaryArray[i] = this.chipData[i];
+                                            this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                                        }
+                                        this.selectionModeStep = 6;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._floatingSelectionDragStartX = this._mouseX;
+                                        this._floatingSelectionDragStartY = this._mouseY;
+                                        this._tentativeSelectionBounds = {
+                                            start: Math.min(64, Math.max(0, this._floatingSelection.destinationStart)),
+                                            end: Math.min(64, Math.max(0, this._floatingSelection.destinationEnd)),
+                                        };
+                                        this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                        this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    }
+                                    else {
+                                        this.commitFloatingSelection();
+                                        this.selectionModeStep = 3;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._tentativeSelectionBounds = {
+                                            start: this._selectionBounds.start,
+                                            end: this._selectionBounds.end,
+                                        };
+                                    }
+                                }
+                                else if (mouseIsAtEndOfSelection) {
+                                    if (this.selectionDragEvent == 1) {
+                                        if (this._floatingSelection == null) {
+                                            for (let i = 0; i < 64; i++)
+                                                this.temporaryArray[i] = this.chipData[i];
+                                            this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                                        }
+                                        this.selectionModeStep = 7;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._tentativeSelectionBounds = {
+                                            start: Math.min(64, Math.max(0, this._floatingSelection.destinationStart)),
+                                            end: Math.min(64, Math.max(0, this._floatingSelection.destinationEnd)),
+                                        };
+                                        this._floatingSelectionDragStartX = this._mouseX;
+                                        this._floatingSelectionDragStartY = this._mouseY;
+                                        this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                        this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    }
+                                    else {
+                                        this.commitFloatingSelection();
+                                        this.selectionModeStep = 4;
+                                        this._removeSelectionButton.style.display = "";
+                                        this._tentativeSelectionBounds = {
+                                            start: this._selectionBounds.start,
+                                            end: this._selectionBounds.end,
+                                        };
+                                    }
+                                }
+                                else if (mouseIsInsideSelection) {
+                                    this.selectionModeStep = 5;
+                                    this._removeSelectionButton.style.display = "";
+                                    if (this._floatingSelection == null) {
+                                        for (let i = 0; i < 64; i++)
+                                            this.temporaryArray[i] = this.chipData[i];
+                                        this._floatingSelection = createFloatingSelectionFromBounds(this.chipData, bounds);
+                                    }
+                                    this._floatingSelectionDragStartX = this._mouseX;
+                                    this._floatingSelectionDragStartY = this._mouseY;
+                                    this._tentativeSelectionBounds = {
+                                        start: Math.min(64, Math.max(0, this._floatingSelection.destinationStart)),
+                                        end: Math.min(64, Math.max(0, this._floatingSelection.destinationEnd)),
+                                    };
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    this._tentativeAmplitudeOffset = this._floatingSelection.amplitudeOffset;
+                                    if (event.shiftKey) {
+                                        this._lockSelectionHorizontally = true;
+                                    }
+                                    else {
+                                        this._lockSelectionHorizontally = false;
+                                    }
+                                }
+                                else {
+                                    this.commitFloatingSelection();
+                                    this.selectionModeStep = 1;
+                                    const newSelectionStart = Math.min(63, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    const newSelectionEnd = newSelectionStart;
+                                    this._selectionBounds = {
+                                        start: newSelectionStart,
+                                        end: newSelectionEnd,
+                                    };
+                                    this._tentativeSelectionBounds = {
+                                        start: newSelectionStart,
+                                        end: newSelectionEnd,
+                                    };
+                                }
+                            }
+                            break;
+                        case 3:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 4:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 5:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 6:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                        case 7:
+                            {
+                                throw new Error("This should be unreachable!");
+                            }
+                    }
                     this._renderSelection();
                 }
                 this._whenCursorMoved();
@@ -23242,11 +23401,138 @@ li.select2-results__option[role=group] > strong:hover {
                     }
                 }
                 else if (this.drawMode == 3) {
+                    switch (this.selectionModeStep) {
+                        case 0:
+                            break;
+                        case 1:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionEnd = Math.min(64, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    if (newSelectionEnd > this._selectionBounds.start) {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = newSelectionEnd;
+                                    }
+                                    else if (newSelectionEnd < this._selectionBounds.start) {
+                                        this._tentativeSelectionBounds.start = newSelectionEnd;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.start + 1;
+                                    }
+                                    else {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.end;
+                                    }
+                                }
+                            }
+                            break;
+                        case 2:
+                            break;
+                        case 3:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionStart = Math.min(64, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    if (newSelectionStart < this._selectionBounds.end) {
+                                        this._tentativeSelectionBounds.start = newSelectionStart;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.end;
+                                    }
+                                    else {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.start;
+                                    }
+                                }
+                            }
+                            break;
+                        case 4:
+                            {
+                                if (this._mouseDown) {
+                                    const newSelectionEnd = Math.min(64, Math.max(0, Math.floor(this._mouseX * 64 / this._editorWidth)));
+                                    if (newSelectionEnd > this._selectionBounds.start) {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = newSelectionEnd;
+                                    }
+                                    else {
+                                        this._tentativeSelectionBounds.start = this._selectionBounds.start;
+                                        this._tentativeSelectionBounds.end = this._selectionBounds.start;
+                                    }
+                                }
+                            }
+                            break;
+                        case 5:
+                            {
+                                if (this._mouseDown) {
+                                    const chipMouseX = Math.floor(this._mouseX * 64 / this._editorWidth);
+                                    const chipMouseY = Math.floor(this._mouseY * 49 / this._editorHeight);
+                                    const chipDragStartX = Math.floor(this._floatingSelectionDragStartX * 64 / this._editorWidth);
+                                    const chipDragStartY = Math.floor(this._floatingSelectionDragStartY * 49 / this._editorHeight);
+                                    const displacementX = chipMouseX - chipDragStartX;
+                                    let displacementY = chipMouseY - chipDragStartY;
+                                    if (this._lockSelectionHorizontally) {
+                                        displacementY = 0;
+                                    }
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart + displacementX;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd + displacementX;
+                                    this._tentativeSelectionBounds.start = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    this._tentativeSelectionBounds.end = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    this._tentativeAmplitudeOffset = this._floatingSelection.amplitudeOffset + displacementY;
+                                    for (let i = 0; i < 64; i++)
+                                        this.chipData[i] = this.temporaryArray[i];
+                                    stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._tentativeDestinationStart, this._tentativeDestinationEnd, this._tentativeAmplitudeOffset);
+                                    new ChangeCustomWave(this._doc, this.chipData);
+                                }
+                            }
+                            break;
+                        case 6:
+                            {
+                                if (this._mouseDown) {
+                                    const chipMouseX = Math.floor(this._mouseX * 64 / this._editorWidth);
+                                    const chipDragStartX = Math.floor(this._floatingSelectionDragStartX * 64 / this._editorWidth);
+                                    const displacementX = chipMouseX - chipDragStartX;
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart + displacementX;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd;
+                                    this._tentativeSelectionBounds.start = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    this._tentativeSelectionBounds.end = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    if (this._tentativeSelectionBounds.start < this._tentativeSelectionBounds.end) {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._tentativeDestinationStart, this._tentativeDestinationEnd, this._floatingSelection.amplitudeOffset);
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                    else {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                }
+                            }
+                            break;
+                        case 7:
+                            {
+                                if (this._mouseDown) {
+                                    const chipMouseX = Math.floor(this._mouseX * 64 / this._editorWidth);
+                                    const chipDragStartX = Math.floor(this._floatingSelectionDragStartX * 64 / this._editorWidth);
+                                    const displacementX = chipMouseX - chipDragStartX;
+                                    this._tentativeDestinationStart = this._floatingSelection.destinationStart;
+                                    this._tentativeDestinationEnd = this._floatingSelection.destinationEnd + displacementX;
+                                    this._tentativeSelectionBounds.start = Math.min(64, Math.max(0, this._tentativeDestinationStart));
+                                    this._tentativeSelectionBounds.end = Math.min(64, Math.max(0, this._tentativeDestinationEnd));
+                                    if (this._tentativeSelectionBounds.start < this._tentativeSelectionBounds.end) {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        stampFloatingSelectionOntoChipWave(this.chipData, this._floatingSelection.data, this._tentativeDestinationStart, this._tentativeDestinationEnd, this._floatingSelection.amplitudeOffset);
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                    else {
+                                        for (let i = 0; i < 64; i++)
+                                            this.chipData[i] = this.temporaryArray[i];
+                                        new ChangeCustomWave(this._doc, this.chipData);
+                                    }
+                                }
+                            }
+                            break;
+                    }
                     this._renderSelection();
                 }
                 this._whenCursorMoved();
             };
-            this._whenCursorReleased = (event) => {
+            this._whenCursorReleased = () => {
                 if (this.drawMode == 2 && this._mouseDown) {
                     switch (this.curveModeStep) {
                         case 0:
@@ -32567,9 +32853,74 @@ You should be redirected to the song at:<br /><br />
                 }
                 this._getChange(this.newArray);
             };
+            this._onTouchMove = (event) => {
+                if (this.mouseDown) {
+                    var x = (event.touches[0].clientX || event.touches[0].pageX) - this.canvas.getBoundingClientRect().left;
+                    var y = Math.floor((event.touches[0].clientY || event.touches[0].pageY) - this.canvas.getBoundingClientRect().top);
+                    if (y < 2)
+                        y = 2;
+                    if (y > 50)
+                        y = 50;
+                    var ctx = this.canvas.getContext("2d");
+                    if (this.continuousEdit == true && Math.abs(this.lastX - x) < 40) {
+                        var lowerBound = (x < this.lastX) ? x : this.lastX;
+                        var upperBound = (x < this.lastX) ? this.lastX : x;
+                        for (let i = lowerBound; i <= upperBound; i += 2) {
+                            var progress = (Math.abs(x - this.lastX) > 2.0) ? ((x > this.lastX) ?
+                                1.0 - ((i - lowerBound) / (upperBound - lowerBound))
+                                : ((i - lowerBound) / (upperBound - lowerBound))) : 0.0;
+                            var j = Math.round(y + (this.lastY - y) * progress);
+                            ctx.fillStyle = ColorConfig.getComputed("--editor-background");
+                            ctx.fillRect(Math.floor(i / 2) * 2, 0, 2, 53);
+                            ctx.fillStyle = ColorConfig.getComputed("--ui-widget-background");
+                            ctx.fillRect(Math.floor(i / 2) * 2, 25, 2, 2);
+                            ctx.fillStyle = ColorConfig.getComputed("--track-editor-bg-pitch-dim");
+                            ctx.fillRect(Math.floor(i / 2) * 2, 13, 2, 1);
+                            ctx.fillRect(Math.floor(i / 2) * 2, 39, 2, 1);
+                            ctx.fillStyle = ColorConfig.getComputedChannelColor(this._doc.song, this._doc.channel).primaryNote;
+                            ctx.fillRect(Math.floor(i / 2) * 2, j - 2, 2, 4);
+                            this.newArray[Math.floor(i / 2)] = (j - 26);
+                        }
+                    }
+                    else {
+                        ctx.fillStyle = ColorConfig.getComputed("--editor-background");
+                        ctx.fillRect(Math.floor(x / 2) * 2, 0, 2, 52);
+                        ctx.fillStyle = ColorConfig.getComputed("--ui-widget-background");
+                        ctx.fillRect(Math.floor(x / 2) * 2, 25, 2, 2);
+                        ctx.fillStyle = ColorConfig.getComputed("--track-editor-bg-pitch-dim");
+                        ctx.fillRect(Math.floor(x / 2) * 2, 13, 2, 1);
+                        ctx.fillRect(Math.floor(x / 2) * 2, 39, 2, 1);
+                        ctx.fillStyle = ColorConfig.getComputedChannelColor(this._doc.song, this._doc.channel).primaryNote;
+                        ctx.fillRect(Math.floor(x / 2) * 2, y - 2, 2, 4);
+                        this.newArray[Math.floor(x / 2)] = (y - 26);
+                    }
+                    this.continuousEdit = true;
+                    this.lastX = x;
+                    this.lastY = y;
+                    let instrument = this._doc.song.channels[this._doc.channel].instruments[this._doc.getCurrentInstrument()];
+                    let sum = 0.0;
+                    for (let i = 0; i < this.newArray.length; i++) {
+                        sum += this.newArray[i];
+                    }
+                    const average = sum / this.newArray.length;
+                    let cumulative = 0;
+                    let wavePrev = 0;
+                    for (let i = 0; i < this.newArray.length; i++) {
+                        cumulative += wavePrev;
+                        wavePrev = this.newArray[i] - average;
+                        instrument.customChipWaveIntegral[i] = cumulative;
+                    }
+                    instrument.customChipWaveIntegral[64] = 0.0;
+                }
+                this._getChange(this.newArray);
+            };
             this._onMouseDown = (event) => {
                 this.mouseDown = true;
                 this._onMouseMove(event);
+            };
+            this._onTouchDown = (event) => {
+                this.mouseDown = true;
+                this._onTouchMove(event);
             };
             this._onMouseUp = () => {
                 this.mouseDown = false;
@@ -32586,6 +32937,10 @@ You should be redirected to the song at:<br /><br />
             canvas.addEventListener("mousedown", this._onMouseDown);
             canvas.addEventListener("mouseup", this._onMouseUp);
             canvas.addEventListener("mouseleave", this._onMouseUp);
+            canvas.addEventListener("touchstart", this._onTouchDown);
+            canvas.addEventListener("touchmove", this._onTouchMove);
+            canvas.addEventListener("touchend", this._onMouseUp);
+            canvas.addEventListener("touchcancel", this._onMouseUp);
             this.mouseDown = false;
             this.continuousEdit = false;
             this.lastX = 0;
